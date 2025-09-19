@@ -1,0 +1,90 @@
+serial_number: j100-0921
+version: 0
+system:
+  hosts:
+    - hostname: cpr-j100-0921
+      ip: 192.168.131.1
+  ros2:
+    namespace: j100_0921
+    domain_id: 4
+    middleware:
+      implementation: rmw_fastrtps_cpp
+    workspaces:
+      - /home/administrator/colcon_ws/install/setup.bash
+platform:
+  attachments:
+    - name: front_fender
+      type: j100.fender
+    - name: rear_fender
+      type: j100.fender
+      rpy: [0.0, 0.0, 3.1415]
+  extras:
+    urdf:
+      package: mtu28_description
+      path: urdf/mtu28_jackal_description.urdf.xacro
+    ros_parameters:
+      platform_velocity_controller:
+        linear.x.max_velocity: 1.0
+        linear.x.min_velocity: -1.0
+        linear.x.max_acceleration: 2.5
+        linear.x.min_acceleration: -2.5
+        angular.z.max_velocity: 1.0
+        angular.z.min_velocity: -1.0
+        angular.z.max_acceleration: 2.5
+        angular.z.min_acceleration: -2.5
+mounts:
+  fath_pivot:
+    - parent: front_0_mount
+      xyz: [0.10999, 0.0, 0.01999]
+      rpy: [0.0, 1.5708, 0.0]
+      angle: -1.5708 # in radian
+sensors:
+  imu:
+  - model: microstrain_imu
+    urdf_enabled: true
+    launch_enabled: true
+    parent: rear_0_mount
+    xyz: [-0.015, -0.08076, -0.08674]
+    rpy: [0.0, 0.0, 0.0]
+    ros_parameters:
+      microstrain_inertial_driver:
+        imu_frame_id: imu_0_link
+        port: /dev/microstrain_main
+        use_enu_frame: true
+  camera:
+  - model: stereolabs_zed
+    urdf_enabled: true
+    launch_enabled: true
+    parent: fath_pivot_0_mount
+    xyz: [0.0, 0.0, 0.0]
+    rpy: [0.0, 0.0, 0.0]
+    ros_parameters:
+      stereolabs_zed:
+        general.grab_frame_rate: 30
+        general.serial_number: 31947366
+        general.camera_model: 'zed2i'
+        general.grab_resolution: 'AUTO'
+  gps:
+  - model: swiftnav_duro
+    urdf_enabled: true
+    launch_enabled: true
+    parent: front_0_mount
+    xyz: [0.0044, 0.0, 0.08873]
+    rpy: [0.0, 0.0, 0.0]
+    ros_parameters:
+      duro_node:
+        gps_receiver_frame_id: gps_1_link
+        ip_address: 192.168.131.31
+        ip_port: 55555
+        imu_frame_id: gps_1_link
+manipulators:
+  arms:
+    - model: kinova_gen3_lite
+      parent: default_mount
+      xyz: [0.0, 0.0, 0.0719]
+      rpy: [0.0, 0.0, -1.5708]
+      ip: 192.168.1.10
+      port: 10000
+      gripper:
+        model: kinova_2f_lite
+

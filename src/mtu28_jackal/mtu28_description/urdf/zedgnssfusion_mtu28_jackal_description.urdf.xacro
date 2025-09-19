@@ -1,0 +1,118 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="camera_name"   default="camera_0" />
+  <xacro:arg name="camera_model"  default="zed2i" />
+  <xacro:arg name="custom_baseline"  default="0.0" />
+  <!-- If GNSS fusion is enabled the position of the antenna with respect to the camera mount point is required -->
+  <xacro:arg name="enable_gnss"   default="false" />
+  <xacro:arg name="gnss_x" default="0.007" />
+  <xacro:arg name="gnss_y" default="0.0" />
+  <xacro:arg name="gnss_z" default="0.197" />
+  <xacro:arg name="use_zed_localization" default="false" /> <!-- odom frame to camera_link frame if true -->
+  <xacro:arg name="parent_link" default="fath_pivot_0_mount" />  <!-- only when use_zed_localization is false-->
+
+  <xacro:include filename="$(find project_description)/urdf/zed_macro.urdf.xacro" />
+  <xacro:zed_camera name="$(arg camera_name)" 
+                    model="$(arg camera_model)" 
+                    custom_baseline="$(arg custom_baseline)" 
+                    enable_gnss="$(arg enable_gnss)" 
+                    use_zed_localization="$(arg use_zed_localization)" 
+                    parent_link="$(arg parent_link)"
+                    gnss_x="$(arg gnss_x)"
+                    gnss_y="$(arg gnss_y)"
+                    gnss_z="$(arg gnss_z)">
+       <!-- when use_zed_localization is false, this should provide the transform from the mount to the camera_link -->              
+      <origin xyz="0.0 0.0 0.0" rpy="0 0 0"/>     
+      <!-- camera link to base_link when use_zed_localization is true -->
+      <!-- <origin xyz="-0.252 0.000 -0.226" rpy="0 0 0"/>        -->
+  </xacro:zed_camera>
+
+  <!-- Link for the top assembly (Mid) mesh -->
+  <link name="top_assy_mid_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_mid_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_mid_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_mid_components_joint" type="fixed">
+    <parent link="default_mount"/>
+    <child link="top_assy_mid_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>
+  
+  <!-- Link for the top assembly (front) mesh -->
+  <!-- <link name="top_assy_front_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_front_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_front_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_front_components_joint" type="fixed">
+    <parent link="front_0_mount"/>
+    <child link="top_assy_front_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>   -->
+  
+  <!-- Link for the top assembly (rear) mesh -->
+  <link name="top_assy_rear_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_rear_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_rear_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_rear_components_joint" type="fixed">
+    <parent link="rear_0_mount"/>
+    <child link="top_assy_rear_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>  
+
+  <!-- Link for the top assembly (Mid) mesh -->
+  <link name="top_assy_duro_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/duro_mount_frame_aligned_brep_lower.stl" />
+      </geometry>
+    </visual>
+    <!-- <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/duro_mount_frame_assy_low.dae"/>
+      </geometry>
+    </collision> -->
+  </link>
+
+  <joint name="top_assy_duro_components_joint" type="fixed">
+    <parent link="front_0_mount"/>
+    <child link="top_assy_duro_components_link"/>
+    <!-- <origin xyz="-0.02 -0.2185 -0.01" rpy="1.547 0 3.141519" /> -->
+    <origin xyz="0.093 0.0 0.0235" rpy="1.5707963 0 3.1415926" />
+  </joint>
+  
+ </robot>
+
+

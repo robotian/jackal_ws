@@ -1,0 +1,70 @@
+<?xml version="1.0"?>
+
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+  <!-- Link for the top assembly (Mid) mesh -->
+  <link name="top_assy_mid_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_mid_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_mid_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_mid_components_joint" type="fixed">
+    <parent link="default_mount"/>
+    <child link="top_assy_mid_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>
+  
+  <!-- Link for the top assembly (front) mesh -->
+  <link name="top_assy_front_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_front_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_front_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_front_components_joint" type="fixed">
+    <parent link="front_0_mount"/>
+    <child link="top_assy_front_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>  
+  
+  <!-- Link for the top assembly (rear) mesh -->
+  <link name="top_assy_rear_components_link">
+    <visual>
+      <material name="clearpath_black"/>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_rear_assy.STL"/>
+      </geometry>
+    </visual>
+    <collision>
+      <geometry>
+        <mesh filename="package://mtu28_description/meshes/MTU28_rear_assy.STL"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="top_assy_rear_components_joint" type="fixed">
+    <parent link="rear_0_mount"/>
+    <child link="top_assy_rear_components_link"/>
+    <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+  </joint>  
+  
+ </robot>
+
+
