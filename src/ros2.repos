@@ -1,0 +1,21 @@
+repositories:
+  duro_gps_driver:
+    type: git
+    url: https://github.com/szenergy/duro_gps_driver.git
+    version: ros2-humble
+  imu_tools:
+    type: git
+    url: https://github.com/CCNYRoboticsLab/imu_tools.git
+    version: humble
+  # swiftnav-ros2:
+  #   type: git
+  #   url: https://github.com/swift-nav/swiftnav-ros2.git
+  #   version: master
+  # zed-ros2-examples:
+  #   type: git
+  #   url: https://github.com/stereolabs/zed-ros2-examples.git
+  #   version: master
+  # zed-ros2-wrapper: 
+  #   type: git
+  #   url: https://github.com/stereolabs/zed-ros2-wrapper.git
+  #   version: master

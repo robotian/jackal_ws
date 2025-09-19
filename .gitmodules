@@ -1,0 +1,8 @@
+[submodule "src/duro_gps_driver"]
+	path = src/duro_gps_driver
+	url = https://github.com/szenergy/duro_gps_driver.git
+	branch = ros2-humble
+[submodule "src/imu_tools"]
+	path = src/imu_tools
+	url = https://github.com/CCNYRoboticsLab/imu_tools.git
+	branch = humble
