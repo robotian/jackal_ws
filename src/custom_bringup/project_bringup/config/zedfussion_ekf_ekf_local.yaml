@@ -1,0 +1,87 @@
+/*/ekf_local_odom_node:
+  ros__parameters:
+    frequency: 30.0
+    sensor_timeout: 0.1
+    two_d_mode: true # Set to true if only moving in X-Y plane and want to ignore Z, roll, pitch
+    publish_tf: true  # This EKF publishes odom -> base_link
+
+    map_frame: map     # Defined for consistency, but not used by this EKF
+    odom_frame: odom   # Output local odometry frame
+    base_link_frame: base_link # Robot's base frame
+    world_frame: odom  # The frame this EKF's output is relative to
+    base_link_frame_output: base_link 
+
+
+    # odom0: sensors/camera_0/stereolabs_zed/odom # odom topic converted from zed_node/odom
+    odom0: odom
+# Each sensor reading updates some or all of the filter's state. These options give you greater control over which
+# values from each measurement are fed to the filter. For example, if you have an odometry message as input, but only
+# want to use its Z position value, then set the entire vector to false, except for the third entry. The order of the
+# values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Note that not some message types
+# do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
+# has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
+# if unspecified, effectively making this parameter required for each sensor.
+    odom0_config: [true, true, true, # X, Y, Z
+                   true, true, true, # Roll, Pitch, Yaw
+                   false, false, false, # Vx, Vy, Vz
+                   false, false, false, # Vroll, Vpitch, Vyaw
+                   false, false, false] # Ax, Ay, Az
+    # odom0_config: [true, true, true, # x, y, z
+    #             true, true, true, # roll, pitch, yaw
+    #             true, true, true, # vx, vy, vz
+    #             true, true, true, # vroll, vpitch, vyaw
+    #             false, false, false] # ax, ay, az
+
+# If you have high-frequency data or are running with a low frequency parameter value, then you may want to increase
+# the size of the subscription queue so that more measurements are fused.
+    odom0_queue_size: 10
+
+# [ADVANCED] Large messages in ROS can exhibit strange behavior when they arrive at a high frequency. This is a result
+# of Nagle's algorithm. This option tells the ROS subscriber to use the tcpNoDelay option, which disables Nagle's
+# algorithm.
+    odom0_nodelay: false
+
+# [ADVANCED] When measuring one pose variable with two sensors, a situation can arise in which both sensors under-
+# report their covariances. This can lead to the filter rapidly jumping back and forth between each measurement as they
+# arrive. In these cases, it often makes sense to (a) correct the measurement covariances, or (b) if velocity is also
+# measured by one of the sensors, let one sensor measure pose, and the other velocity. However, doing (a) or (b) isn't
+# always feasible, and so we expose the differential parameter. When differential mode is enabled, all absolute pose
+# data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
+# integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
+# for twist measurements has no effect.
+    odom0_differential: false # VIO is relative
+
+# [ADVANCED] When the node starts, if this parameter is true, then the first measurement is treated as a "zero point"
+# for all future measurements. While you can achieve the same effect with the differential paremeter, the key
+# difference is that the relative parameter doesn't cause the measurement to be converted to a velocity before
+# integrating it. If you simply want your measurements to start at 0 for a given sensor, set this to true.
+    # odom0_relative: true
+
+# [ADVANCED] If your data is subject to outliers, use these threshold settings, expressed as Mahalanobis distances, to
+# control how far away from the current vehicle state a sensor measurement is permitted to be. Each defaults to
+# numeric_limits<double>::max() if unspecified. It is strongly recommended that these parameters be removed if not
+# required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
+# For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
+# the thresholds.
+    odom0_pose_rejection_threshold: 10.0
+    odom0_twist_rejection_threshold: 1.0
+
+    # imu0: sensors/imu_1/data_filtered  # after madgwick
+    # imu0_config: [false, false, false, # x, y, z
+    #               false, false, false,  # roll, pitch, yaw (from orientation field)
+    #               false, false, false, # vx, vy, vz
+    #               true, true, true,  # vroll, vpitch, vyaw (from angular_velocity field)
+    #               true, true, true]  # ax, ay, az (from linear_acceleration field)
+    # # imu0_config: [false, false, false, # X, Y, Z
+    # #               true, true, true,  # Roll, Pitch, Yaw (from quaternion)
+    # #               false, false, false, # Vx, Vy, Vz
+    # #               true, true, true,  # Vroll, Vpitch, Vyaw (from angular_velocity)
+    # #               false, false, false] # Ax, Ay, Az (from linear_acceleration, consider setting true for Ax/Ay if useful, but ZED VIO is better)
+    # imu0_differential: true # IMU orientation is absolute
+    # imu0_relative: true # Set to true if you want IMU only for relative changes, not absolute orientation
+    # imu0_remove_gravitational_acceleration: true # Important for accelerations
+    # imu0_queue_size: 10
+
+    # Output
+    # This EKF publishes its filtered state to /odometry/filtered
+    # And publishes the TF odom -> base_link

@@ -1,0 +1,31 @@
+j100_0921/sensors/gps_1:
+  duro_node:
+    ros__parameters:
+      ip_address: '192.168.131.31'
+      port: 55555
+      gps_receiver_frame: 'camera_0_gnss_link'
+      imu_frame: 'gps_1_imu_link'
+      utm_frame: 'utm'
+      tf_child_frame_id: 'gps_1_link_duro'
+      tf_frame_id: 'utm'
+      orientation_source: 'gps' # 'odom' # 'gps'
+      z_coord_ref_switch: 'orig'
+      z_coord_exact_height: 0.0
+      zero_based_pose: False # use UTM as the frame origin
+      euler_based_orientation: True
+      ip_port: 55555
+      publish_imu_messages: True
+      publish_odom_messages: True
+      publish_tf: false
+
+# orientation_source can be gps / odom  
+# - gps: orientation provided from the default gps modules 
+# - odom: orientation counted from previous positions        
+# z_coord_ref_switch can be zero / exact / zero_based / orig 
+# - zero: the Z coordinate is always 0
+# - exact: the Z coorindinate is always z_coord_exact_height param (must be set in this launch)
+# - zero_based: Z coordinate starts from 0 and relative
+# - orig: the original Z provided by Duro / Piksi
+# euler_based_orientation:
+# - true: euler based, not enabled by default, please enable SPB message SBP_MSG_ORIENT_EULER 0x0221 decimal 545
+# - false: quaternion based, not enabled by default, please enable SPB message SBP_MSG_ORIENT_QUAT 0x0220 decimal 544

@@ -1,0 +1,95 @@
+/*/complementary_filter_ref_node:
+  ros__parameters:
+    gain_acc: 0.1
+    gain_mag: 0.01
+    bias_alpha: 0.02
+    do_bias_estimation: true
+    do_adaptive_gain: true
+    use_mag: false
+    fixed_frame: "odom"
+    publish_tf: false
+    reverse_tf: false
+    constant_dt: 0.0
+    publish_debug_topics: false
+
+    # qos_overrides:
+    #   /imu/data_raw:
+    #     subscription:
+    #       depth: 10
+    #       durability: volatile
+    #       history: keep_last
+    #       reliability: reliable
+
+    #   /imu/mag:
+    #     subscription:
+    #       depth: 10
+    #       durability: volatile
+    #       history: keep_last
+    #       reliability: reliable
+
+/*/complementary_filter_att_node:
+  ros__parameters:
+    gain_acc: 0.1
+    gain_mag: 0.01
+    bias_alpha: 0.02
+    do_bias_estimation: true
+    do_adaptive_gain: true
+    use_mag: false
+    fixed_frame: "odom"
+    publish_tf: false
+    reverse_tf: false
+    constant_dt: 0.0
+    publish_debug_topics: false
+
+    # qos_overrides:
+    #   /imu/data_raw:
+    #     subscription:
+    #       depth: 10
+    #       durability: volatile
+    #       history: keep_last
+    #       reliability: reliable
+
+    #   /imu/mag:
+    #     subscription:
+    #       depth: 10
+    #       durability: volatile
+    #       history: keep_last
+    #       reliability: reliable
+
+/*/imu_madgwick_ref_node:
+  ros__parameters:
+    stateless: false
+    use_mag: false
+    publish_tf: false
+    reverse_tf: false
+    fixed_frame: "odom"
+    constant_dt: 0.0
+    publish_debug_topics: false
+    world_frame: "enu"
+    gain: 0.1
+    zeta: 0.005
+    mag_bias_x: 0.0
+    mag_bias_y: 0.0
+    mag_bias_z: 0.0
+    orientation_stddev: 0.5
+    yaw_offset: 0.0
+    remove_gravity_vector: false
+
+/*/imu_madgwick_att_node:
+  ros__parameters:
+    stateless: false
+    use_mag: false
+    publish_tf: false
+    reverse_tf: false
+    fixed_frame: "odom"
+    constant_dt: 0.0
+    publish_debug_topics: false
+    world_frame: "enu"
+    gain: 0.1
+    zeta: 0.0
+    mag_bias_x: 0.0
+    mag_bias_y: 0.0
+    mag_bias_z: 0.0
+    orientation_stddev: 0.5
+    yaw_offset: 0.0
+    remove_gravity_vector: false

@@ -1,0 +1,8 @@
+image: map_robindale_1_resize.pgm
+resolution: 0.05
+origin: [-10.6442, -25.3166, 0.0]
+# origin: [8.2745012, 20.2061956, -3.124]
+negate: 0
+occupied_thresh: 0.5
+free_thresh: 0.196
+
