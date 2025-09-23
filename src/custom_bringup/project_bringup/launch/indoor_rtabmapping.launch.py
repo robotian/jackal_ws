@@ -24,12 +24,12 @@ remappings = []
 def launch_setup(context: LaunchContext, *args, **kwargs):
 
     # Hack to override grab_resolution parameter without changing any files
-    with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as zed_override_file:
-        zed_override_file.write("---\n"+
-                  "/**:\n"+
-                  "    ros__parameters:\n"+
-                  "        general:\n"+
-                  "            grab_resolution: 'VGA'")
+    # with tempfile.NamedTemporaryFile(mode='w+t', delete=False) as zed_override_file:
+    #     zed_override_file.write("---\n"+
+    #               "/**:\n"+
+    #               "    ros__parameters:\n"+
+    #               "        general:\n"+
+    #               "            grab_resolution: 'VGA'")
 
     parameters=[{'frame_id':'base_link',
                  'subscribe_rgbd':True,
@@ -126,6 +126,8 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'camera_model', default_value='zed2i',
             description="[REQUIRED] The model of the camera. Using a wrong camera model can disable camera features. Valid choices are: ['zed', 'zedm', 'zed2', 'zed2i', 'zedx', 'zedxm', 'virtual']"),
+        
+
 
         OpaqueFunction(function=launch_setup)
     ])

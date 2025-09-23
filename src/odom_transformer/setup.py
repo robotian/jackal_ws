@@ -22,11 +22,12 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'map2odom_tf_publisher = odom_transformer.map2odom_tf_publisher:main',
             'odom_transformer_node = odom_transformer.odom_transformer_node:main',
             'odom_transformer_ekf_node = odom_transformer.odom_transformer_ekf_node:main', 
             # 'odom_heading_publisher = odom_transformer.odom_heading_publisher:main', #odom_heading_publisher.py
             'dual_gps_odom_publisher = odom_transformer.dual_gps_odom_publisher:main', 
-            'attitude_duro_heading2odom = odom_transformer.attitude_duro_heading2odom:main',
+            'attitude_duro_heading2odom = odom_transformer.attitude_duro_heading2odom:main',            
         ],
     },
 )

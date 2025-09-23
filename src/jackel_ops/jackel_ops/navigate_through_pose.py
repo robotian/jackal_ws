@@ -261,35 +261,41 @@ class NavigationActionClientUsingNTP:
             pose = PoseStamped()
             pose.header.frame_id = "map"
             pose.header.stamp = self.node.get_clock().now().to_msg()
+            pose.pose.position.x = float(
+                self.robot_status.topo_map_position.x)
+            pose.pose.position.y = float(
+                self.robot_status.topo_map_position.y)
+            pose.pose.orientation.z = -1.57
+            pose.pose.orientation.w = 1.0
 
-            # First pose is the robot's current location
-            if index == 0:
-                pose.pose.position.x = float(
-                    self.robot_status.topo_map_position.x)
-                pose.pose.position.y = float(
-                    self.robot_status.topo_map_position.y)
-                pose.pose.orientation.z = -1.57
-                pose.pose.orientation.w = 1.0
-            else:
-                current_wp = WayPoint(
-                    **waypoint) if isinstance(waypoint, dict) else waypoint
-                next_wp = waypoint_list[index + 1] if index + 1 < waypoint_count else None
+            # # First pose is the robot's current location
+            # if index == 0:
+            #     pose.pose.position.x = float(
+            #         self.robot_status.topo_map_position.x)
+            #     pose.pose.position.y = float(
+            #         self.robot_status.topo_map_position.y)
+            #     pose.pose.orientation.z = -1.57
+            #     pose.pose.orientation.w = 1.0
+            # else:
+            #     current_wp = WayPoint(
+            #         **waypoint) if isinstance(waypoint, dict) else waypoint
+            #     next_wp = waypoint_list[index + 1] if index + 1 < waypoint_count else None
 
-                pose.pose.position.x = float(current_wp.x)
-                pose.pose.position.y = float(current_wp.y)
+            #     pose.pose.position.x = float(current_wp.x)
+            #     pose.pose.position.y = float(current_wp.y)
 
-                # Pose Orientation calculation pointing towards next pose
-                if next_wp and (current_wp.x != 0 or current_wp.y != 0):
-                    dx = next_wp.x - current_wp.x
-                    dy = next_wp.y - current_wp.y
-                    angle = math.atan2(dy, dx)
-                    logger.info(f"Angle: {angle}")
-                    pose.pose.orientation.z = math.sin(angle / 2)
-                    pose.pose.orientation.w = math.cos(angle / 2)
-                # Default orientation of pose on last waypoint pose
-                else:
-                    pose.pose.orientation.z = -1.57
-                    pose.pose.orientation.w = 1.0
+            #     # Pose Orientation calculation pointing towards next pose
+            #     if next_wp and (current_wp.x != 0 or current_wp.y != 0):
+            #         dx = next_wp.x - current_wp.x
+            #         dy = next_wp.y - current_wp.y
+            #         angle = math.atan2(dy, dx)
+            #         logger.info(f"Angle: {angle}")
+            #         pose.pose.orientation.z = math.sin(angle / 2)
+            #         pose.pose.orientation.w = math.cos(angle / 2)
+            #     # Default orientation of pose on last waypoint pose
+            #     else:
+            #         pose.pose.orientation.z = -1.57
+            #         pose.pose.orientation.w = 1.0
 
             poses.append(pose)
 
