@@ -335,12 +335,12 @@ def generate_launch_description():
     ld.add_action(launch_zed) 
     
     # ld.add_action(launch_ekf_local)
-    ld.add_action(odom_publisher_node)
+    # ld.add_action(odom_publisher_node)
 
     # ld.add_action(att_duro_headingOdom_node)    
 
     ld.add_action(declare_apriltag_config_cmd)
-    ld.add_action(apriltag_node)
+    # ld.add_action(apriltag_node)
     ld.add_action(mocap_pose_pub_node)
 
     # # comment out for RTAB mapping

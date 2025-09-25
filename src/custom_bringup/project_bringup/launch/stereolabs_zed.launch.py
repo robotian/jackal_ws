@@ -265,25 +265,13 @@ def generate_launch_description():
     apriltag_component = ComposableNode(
         package='apriltag_ros',
         namespace=namespace,
-        plugin='apriltag_ros::AprilTagNode',
+        plugin='AprilTagNode',
         name='apriltag_node',
-        # parameters=[{
-        #     'family': 'tag36h11',
-        #     'size': 0.162,  # Size of the tag in meters
-        #     'max_hamming': 0,
-        #     'tag_ids': [],  # Empty list means detect all tag IDs
-        #     'camera_frame': 'camera_0_left_camera_frame',
-        #     'publish_tf': True,
-        #     'tf_prefix': '',
-        #     'camera_info_topic': 'left/camera_info',
-        #     'image_topic': 'left/image_rect_color',
-        #     'queue_size': 10,
-        # }],
         parameters=[LaunchConfiguration('apriltag_config')],
         remappings=[('/tf', 'tf'),
                     ('/tf_static', 'tf_static'),
-                    ('image_rect', 'sensors/camera_0/stereolabs_zed/rgb/image_rect_color'),
-                    ('camera_info', 'sensors/camera_0/stereolabs_zed/rgb/camera_info'),
+                    ('image_rect', 'stereolabs_zed/rgb/image_rect_color'),
+                    ('camera_info', 'stereolabs_zed/rgb/camera_info'),
                     ('detections', 'apriltag_detections'),
                     ],
         extra_arguments=[{'use_intra_process_comms': True}],  # Enable intra-process communication
@@ -296,7 +284,7 @@ def generate_launch_description():
         executable='component_container',
         composable_node_descriptions=[
                                     stereolabs_zed_node, 
-                                    # apriltag_component,
+                                    apriltag_component,
                                     # zed_cvt_component,
                                     ],
         output='screen',
@@ -311,7 +299,7 @@ def generate_launch_description():
     ld.add_action(arg_robot_namespace)
     # ld.add_action(arg_config_path_cvt)
     # ld.add_action(zed_cvt_component) 
-    # ld.add_action(declare_apriltag_config_cmd)
+    ld.add_action(declare_apriltag_config_cmd)
     ld.add_action(image_processing_container) 
     
     return ld
