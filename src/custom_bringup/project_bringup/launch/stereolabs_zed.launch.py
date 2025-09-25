@@ -279,11 +279,12 @@ def generate_launch_description():
 
     zedOdomRepub_component = ComposableNode(
         package='misc_tools_cpp',
-        namespace=namespace,
+        # namespace=namespace,
+        namespace=robot_namespace,
         plugin='ZedOdomTransformer',
         name='zed_odom_transformer',
         parameters=[
-            {'target_odom_topic': 'stereolabs_zed/odom'},
+            {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},
             {'publish_tf': True},
             ],
         remappings=[('/tf', 'tf'),
@@ -300,7 +301,7 @@ def generate_launch_description():
         composable_node_descriptions=[
                                     stereolabs_zed_node, 
                                     apriltag_component,
-                                    # zedOdomRepub_component,
+                                    zedOdomRepub_component,
                                     # zed_cvt_component,
                                     ],
         output='screen',

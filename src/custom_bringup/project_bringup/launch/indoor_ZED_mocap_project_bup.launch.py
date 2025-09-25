@@ -305,6 +305,7 @@ def generate_launch_description():
         remappings=[
             ('/tf','tf'),
             ('/tf_static','tf_static'),
+            # ('odom_converted','sensors/camera_0/odom_converted'),  # when using zedOdom composible node
             # ('navsatfix','fix'),
         ],
         output='screen',
