@@ -277,6 +277,21 @@ def generate_launch_description():
         extra_arguments=[{'use_intra_process_comms': True}],  # Enable intra-process communication
     )   
 
+    zedOdomRepub_component = ComposableNode(
+        package='misc_tools_cpp',
+        namespace=namespace,
+        plugin='ZedOdomTransformer',
+        name='zed_odom_transformer',
+        parameters=[
+            {'target_odom_topic': 'stereolabs_zed/odom'},
+            {'publish_tf': True},
+            ],
+        remappings=[('/tf', 'tf'),
+                    ('/tf_static', 'tf_static'),
+                    ],
+        extra_arguments=[{'use_intra_process_comms': True}],  # Enable intra-process communication
+    )   
+
     image_processing_container = ComposableNodeContainer(
         name='image_processing_container',
         namespace=namespace,
@@ -285,6 +300,7 @@ def generate_launch_description():
         composable_node_descriptions=[
                                     stereolabs_zed_node, 
                                     apriltag_component,
+                                    # zedOdomRepub_component,
                                     # zed_cvt_component,
                                     ],
         output='screen',

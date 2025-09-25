@@ -14,9 +14,9 @@ using std::placeholders::_1;
 class ZedOdomTransformer : public rclcpp::Node
 {
 public:
-//   ZedOdomTransformer() 
-  explicit ZedOdomTransformer(const rclcpp::NodeOptions & options)
-  : Node("odom_transformer",options), 
+  ZedOdomTransformer() 
+//   explicit ZedOdomTransformer(const rclcpp::NodeOptions & options)
+  : Node("odom_transformer"), 
   tf_buffer_(this->get_clock()), 
   tf_listener_(tf_buffer_), 
   tf_broadcaster_(this)
@@ -226,16 +226,13 @@ private:
   }
 };
 
-// int main(int argc, char **argv)
-// {
-//   rclcpp::init(argc, argv);
-//   auto node = std::make_shared<ZedOdomTransformer>();
-//   rclcpp::spin(node);
-//   rclcpp::shutdown();
-//   return 0;
-// }
+int main(int argc, char **argv)
+{
+  rclcpp::init(argc, argv);
+  auto node = std::make_shared<ZedOdomTransformer>();
+  rclcpp::spin(node);
+  rclcpp::shutdown();
+  return 0;
+}
 
 
-// Register the node as a component
-#include "rclcpp_components/register_node_macro.hpp"
-RCLCPP_COMPONENTS_REGISTER_NODE(ZedOdomTransformer)

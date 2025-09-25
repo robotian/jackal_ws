@@ -14,7 +14,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-
+find_package(rclcpp_components REQUIRED)
 
 
 include_directories(include ${EIGEN3_INCLUDE_DIR})
@@ -22,7 +22,7 @@ include_directories(include ${EIGEN3_INCLUDE_DIR})
 
 
 # Declare multiple executables for your nodes
-add_executable(zedOdomRepublisherNode src/zedOdomRepublisher.cpp)
+add_executable(zedOdomRepublisherNode src/zedOdomRepublisher_main.cpp)
 ament_target_dependencies(zedOdomRepublisherNode rclcpp tf2 tf2_ros nav_msgs geometry_msgs Eigen3 tf2_geometry_msgs)
 
 # add_executable(node2 src/node2.cpp)
@@ -35,7 +35,20 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# install(TARGETS zedodom_transformer_component DESTINATION lib/${PROJECT_NAME})
 
+add_library(zedOdom_transformer_component SHARED src/zedOdomRepublisher.cpp)
+ament_target_dependencies(zedOdom_transformer_component rclcpp tf2 tf2_ros nav_msgs geometry_msgs Eigen3 tf2_geometry_msgs rclcpp_components)
+
+rclcpp_components_register_nodes(zedOdom_transformer_component "ZedOdomTransformer")
+
+
+# Install executables
+install(TARGETS
+  zedOdom_transformer_component
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
