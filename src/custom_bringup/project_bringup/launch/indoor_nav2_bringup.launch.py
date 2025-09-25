@@ -121,7 +121,7 @@ def generate_launch_description():
     declare_params_file_cmd = DeclareLaunchArgument(
         'params_file',
         # default_value=os.path.join(bringup_dir, 'config', 'nav2_param_multi_j100.yaml'),  # for dual EKFs
-        default_value=os.path.join(bringup_dir, 'config', 'ZEDodom_EKF_nav2_param.yaml'),  # for ZED odom +  EKF Global
+        default_value=os.path.join(bringup_dir, 'config', 'indoor_nav2_param.yaml'),  # for ZED odom +  EKF Global
         description='Full path to the ROS2 parameters file to use for all launched nodes')
 
     declare_autostart_cmd = DeclareLaunchArgument(
@@ -169,7 +169,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir,
                                                        'nav2_localization.launch.py')),
-            condition=IfCondition(PythonExpression(['not ', slam])),
+            # condition=IfCondition(PythonExpression(['not ', slam])),
             launch_arguments={'namespace': namespace,
                               'map': map_yaml_file,
                               'use_sim_time': use_sim_time,
