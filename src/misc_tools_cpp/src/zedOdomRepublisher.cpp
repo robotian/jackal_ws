@@ -144,6 +144,29 @@ private:
     }
   }
 
+  void setBaselinkToCameralinkTransformMat(std::string source_frame_id)
+  {
+    geometry_msgs::msg::TransformStamped transform;
+    try
+    {
+      transform = tf_buffer_.lookupTransform(
+          converted_odom_child_frame_,  // target frame   "base_link"
+          source_frame_id,          // source frame   "camera_0_camera_link"
+          tf2::TimePointZero);
+        //   tf_baselink_to_camera_link_ = transform;
+          T_baselink_to_camera_link_= transformToMatrix(transform.transform.translation, transform.transform.rotation);
+        RCLCPP_INFO(this->get_logger(), "Got transform from %s to %s", converted_odom_child_frame_.c_str(), source_frame_id.c_str());
+        RCLCPP_INFO(this->get_logger(), "Translation: x=%f, y=%f, z=%f", transform.transform.translation.x, transform.transform.translation.y, transform.transform.translation.z);
+          T_camera_link_to_base_link_ = T_baselink_to_camera_link_.inverse();
+        got_baselink_to_cameralink_ = true;
+    }
+    catch (tf2::TransformException &ex)
+    {
+      RCLCPP_WARN(this->get_logger(), "Failed to lookup transform: %s", ex.what());
+      return;
+    }
+  }
+
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg)
   {
     if (!msg)
@@ -151,10 +174,10 @@ private:
       RCLCPP_WARN(this->get_logger(), "No odometry message received");
       return;
     }
-
+    // msg->child_frame_id = converted_odom_child_frame_;
     if(!got_baselink_to_cameralink_)
     {
-        setBaselinkToCameralinkTransformMat();
+        setBaselinkToCameralinkTransformMat(msg->child_frame_id);
         if(!got_baselink_to_cameralink_)
         {
             RCLCPP_WARN(this->get_logger(), "No baselink to cameralink transform available yet");
