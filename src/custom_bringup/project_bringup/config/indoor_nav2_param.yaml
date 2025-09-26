@@ -237,15 +237,15 @@ bt_navigator_navigate_to_pose_rclcpp_node:
 # default example
 controller_server:
   ros__parameters:
-    controller_frequency: 10.0
+    controller_frequency: 20.0
     # goal_checker_plugins: ["goal_checker"]
     # progress_checker_plugins: ["progress_checker"]
     controller_plugins: ["FollowPath"]
     odom_topic: <robot_namespace>/odom_converted
     goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.15    # in meters
-      yaw_goal_tolerance: 0.15   # appx. 5.7 degrees
+      xy_goal_tolerance: 0.2    # in meters
+      yaw_goal_tolerance: 0.2   # appx. 5.7 degrees
       stateful: True
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
@@ -254,8 +254,8 @@ controller_server:
 
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 34
-      model_dt: 0.1
+      time_steps: 56
+      model_dt: 0.05
       batch_size: 2000
       vx_std: 0.1
       vy_std: 0.0
@@ -392,7 +392,7 @@ local_costmap:
         inflation_radius: 0.35
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: True
+        enabled: false
         footprint_clearing_enabled: true
         observation_sources: zedScan
         zedScan:

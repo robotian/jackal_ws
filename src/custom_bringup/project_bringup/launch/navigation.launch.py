@@ -46,8 +46,8 @@ def generate_launch_description():
         'planner_server',
         'behavior_server',
         'bt_navigator',
-        # 'waypoint_follower',
-        # 'velocity_smoother',
+        'waypoint_follower',
+        'velocity_smoother',
         ]
 
     # Map fully qualified names to relative ones so the node's namespace can be prepended.
@@ -228,7 +228,7 @@ def generate_launch_description():
                 name='controller_server',
                 parameters=[configured_params],
                 remappings=remappings + [
-                    # ('cmd_vel', 'cmd_vel_nav'), 
+                    ('cmd_vel', 'cmd_vel_nav'), 
                     ('/trajectories','trajectories'),
                     ]),
             ComposableNode(
