@@ -249,8 +249,8 @@ def generate_launch_description():
             {'output_frame': 'camera_0_left_camera_frame'},
             ],
         remappings=[
-                ('depth',  'sensors/camera_0/depth/image'),  # (Todo) this should use the namespace
-                ('depth_camera_info',  'sensors/camera_0/depth/camera_info') # (Todo) this should use the namespace
+                ('depth',  'sensors/camera_0/stereolabs_zed/depth/depth_registered'),  # (Todo) this should use the namespace /j100_0921/sensors/camera_0/stereolabs_zed/depth/camera_info
+                ('depth_camera_info',  'sensors/camera_0/stereolabs_zed/depth/camera_info') # (Todo) this should use the namespace /j100_0921/sensors/camera_0/stereolabs_zed/depth/depth_registered
             ],
     )
 
@@ -301,8 +301,8 @@ def generate_launch_description():
         composable_node_descriptions=[
                                     stereolabs_zed_node, 
                                     apriltag_component,
-                                    zedOdomRepub_component,
-                                    # zed_cvt_component,
+                                    # zedOdomRepub_component,
+                                    zed_cvt_component,
                                     ],
         output='screen',
         remappings=remappings,
@@ -314,7 +314,7 @@ def generate_launch_description():
     ld.add_action(arg_parameters)
     ld.add_action(arg_namespace)
     ld.add_action(arg_robot_namespace)
-    # ld.add_action(arg_config_path_cvt)
+    ld.add_action(arg_config_path_cvt)
     # ld.add_action(zed_cvt_component) 
     ld.add_action(declare_apriltag_config_cmd)
     ld.add_action(image_processing_container) 

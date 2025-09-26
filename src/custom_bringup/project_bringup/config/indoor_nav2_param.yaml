@@ -271,7 +271,7 @@ controller_server:
       az_max: 1.0
       iteration_count: 1
       prune_distance: 1.7
-      transform_tolerance: 0.1
+      transform_tolerance: 0.2
       temperature: 0.3
       gamma: 0.015
       motion_model: "DiffDrive"
@@ -379,38 +379,57 @@ local_costmap:
       width: 4
       height: 4
       resolution: 0.05
-      transform_tolerance: 1.0  #[INFO] [1756223852.774499982] [j100_0921.local_costmap.local_costmap]: Message Filter dropping message: frame 'camera_0_left_camera_frame' at time 1756223852.219 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+      transform_tolerance: 0.1  #[INFO] [1756223852.774499982] [j100_0921.local_costmap.local_costmap]: Message Filter dropping message: frame 'camera_0_left_camera_frame' at time 1756223852.219 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
       # footprint: "[ [0.14, 0.25], [0.14, -0.25], [-0.607, -0.25], [-0.607, 0.25] ]"
       footprint: "[ [0.254, 0.2159], [0.254, -0.2159], [-0.254, -0.2159], [-0.254, 0.2159] ]"
       # plugins: ["hesai_voxel_layer", "front_rplidar_obstacle_layer", "back_rplidar_obstacle_layer", "inflation_layer"]
-      plugins: ["voxel_layer", "inflation_layer"]
+      plugins: ["obstacle_layer", "inflation_layer"]
+      # plugins: ["voxel_layer", "inflation_layer"]
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: True
         cost_scaling_factor: 4.0
         inflation_radius: 0.35
-      voxel_layer:
-        plugin: "nav2_costmap_2d::VoxelLayer"
-        enabled: True ########
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: True
         footprint_clearing_enabled: true
-        max_obstacle_height: 1.0
-        publish_voxel_map: true
-        origin_z: 0.0
-        z_voxels: 10
-        z_resolution: 0.2
-        unknown_threshold: 15
-        observation_sources: pointcloud
-        pointcloud:  # no frame set, uses frame from message
-          topic: <robot_namespace>/sensors/camera_0/stereolabs_zed/point_cloud/cloud_registered
-          max_obstacle_height: 2.0
-          min_obstacle_height: 0.2
-          obstacle_max_range: 5.0
-          obstacle_min_range: 0.0
-          raytrace_max_range: 5.0
-          raytrace_min_range: 0.7
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
+        observation_sources: zedScan
+        zedScan:
+          data_type: LaserScan             # LaserScan for typical lidars
+          topic: <robot_namespace>/scan                     # Topic where scans are published
+          sensor_frame: camera_0_left_camera_frame        # TF frame of the laser scanner
+          marking: true                    # Mark obstacles
+          clearing: true                   # Raytrace clearing
+          min_obstacle_height: 0.0         # Meters, sensor min
+          max_obstacle_height: 2.0         # Meters, sensor max
+          obstacle_max_range: 2.5          # Detection range (meters)
+          raytrace_max_range: 3.0          # Raytrace clearing range (meters)
+          inf_is_valid: false
+          expected_update_rate: 0.0        # Optional, set if you want stale data removed
+          observation_persistence: 0.0     # Optional, time window of scan data
+      # voxel_layer:
+      #   plugin: "nav2_costmap_2d::VoxelLayer"
+      #   enabled: True ########
+      #   footprint_clearing_enabled: true
+      #   max_obstacle_height: 1.0
+      #   publish_voxel_map: true
+      #   origin_z: 0.0
+      #   z_voxels: 10
+      #   z_resolution: 0.2
+      #   unknown_threshold: 15
+      #   observation_sources: pointcloud
+      #   pointcloud:  # no frame set, uses frame from message
+      #     topic: <robot_namespace>/sensors/camera_0/stereolabs_zed/point_cloud/cloud_registered
+      #     max_obstacle_height: 2.0
+      #     min_obstacle_height: 0.2
+      #     obstacle_max_range: 5.0
+      #     obstacle_min_range: 0.0
+      #     raytrace_max_range: 5.0
+      #     raytrace_min_range: 0.7
+      #     clearing: True
+      #     marking: True
+      #     data_type: "PointCloud2"
   local_costmap_client:
     ros__parameters:
       use_sim_time: false
@@ -440,21 +459,40 @@ global_costmap:
       track_unkown_space: true
       # origin_x: -100.0
       # origin_y: -100.0
-      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      plugins: ["static_layer", "inflation_layer"]
+      # plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
-        observation_sources: pointcloud
-        scan:
-          topic: <robot_namespace>/sensors/camera_0/point_cloud/cloud_registered
-          max_obstacle_height: 2.0
-          clearing: True
-          marking: True
-          data_type: "PointCloud2"
-          raytrace_max_range: 5.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 5.0
-          obstacle_min_range: 0.0
+        footprint_clearing_enabled: true
+        observation_sources: zedScan
+        zedScan:
+          data_type: LaserScan             # LaserScan for typical lidars
+          topic: <robot_namespace>/scan                     # Topic where scans are published
+          sensor_frame: camera_0_left_camera_frame        # TF frame of the laser scanner
+          marking: true                    # Mark obstacles
+          clearing: true                   # Raytrace clearing
+          min_obstacle_height: 0.0         # Meters, sensor min
+          max_obstacle_height: 2.0         # Meters, sensor max
+          obstacle_max_range: 2.5          # Detection range (meters)
+          raytrace_max_range: 3.0          # Raytrace clearing range (meters)
+          inf_is_valid: false
+          expected_update_rate: 0.0        # Optional, set if you want stale data removed
+          observation_persistence: 0.0     # Optional, time window of scan data
+      # obstacle_layer:
+      #   plugin: "nav2_costmap_2d::ObstacleLayer"
+      #   enabled: True
+      #   observation_sources: pointcloud
+      #   scan:
+      #     topic: <robot_namespace>/sensors/camera_0/point_cloud/cloud_registered
+      #     max_obstacle_height: 2.0
+      #     clearing: True
+      #     marking: True
+      #     data_type: "PointCloud2"
+      #     raytrace_max_range: 5.0
+      #     raytrace_min_range: 0.0
+      #     obstacle_max_range: 5.0
+      #     obstacle_min_range: 0.0
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
         map_subscribe_transient_local: True

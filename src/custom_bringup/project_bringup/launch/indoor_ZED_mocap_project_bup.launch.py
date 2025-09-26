@@ -228,22 +228,6 @@ def generate_launch_description():
         ]
     )
 
-    # launch_file_ekf_local = PathJoinSubstitution([
-    #     pkg_project_bringup, 'launch', 'dualEKF_ekf_local.launch.py'])
-
-    # launch_ekf_local = GroupAction(
-    #     actions=[            
-    #         PushRosNamespace(LaunchConfiguration('robot_namespace')),
-    #         IncludeLaunchDescription(
-    #             PythonLaunchDescriptionSource([launch_file_ekf_local]),  
-    #             launch_arguments={'use_sim_time': 'false',      
-    #                       'namespace': robot_namespace,   
-    #                     #   'gps_namespace': duro_namespace,                    
-    #                       }.items()  # Optional: Pass arguments if needed                
-    #         )
-    #     ]
-    # )
-
     att_duro_headingOdom_node = Node(
         package='odom_transformer',
         executable='attitude_duro_heading2odom',
@@ -266,6 +250,21 @@ def generate_launch_description():
                     {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},  
                     {'publish_tf': True}  # Set to True to publish the transform    
                     ]
+    )
+
+    zedodom_publisher_node = Node(
+        package='misc_tools_cpp',  # Replace with your actual package name
+        # executable='odom_transformer_node',  # The name of your Python script without the .py extension
+        executable='zedOdomRepublisherNode',  # The name of your Python script without the .py extension
+        name='zedOdomRepublisherNode',
+        output='screen',
+        namespace=robot_namespace,
+        remappings=[('/tf','tf'),('/tf_static','tf_static') ],
+        parameters=[
+            # {'use_sim_time': LaunchConfiguration('use_sim_time')},     
+            {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},  
+            {'publish_tf': True}  # Set to True to publish the transform    
+            ]
     )
 
 
@@ -336,7 +335,7 @@ def generate_launch_description():
     ld.add_action(launch_zed) 
     
     # ld.add_action(launch_ekf_local)
-    # ld.add_action(odom_publisher_node)
+    ld.add_action(zedodom_publisher_node)
 
     # ld.add_action(att_duro_headingOdom_node)    
 
@@ -345,7 +344,7 @@ def generate_launch_description():
     ld.add_action(mocap_pose_pub_node)
 
     # # comment out for RTAB mapping
-    ld.add_action(launch_ekf_global)
+    # ld.add_action(launch_ekf_global)
     
     
     
