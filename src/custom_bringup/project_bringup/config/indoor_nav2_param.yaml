@@ -87,7 +87,7 @@ bt_navigator:
       # - nav2_dock_recovery_action_bt_node
       # - nav2_undock_recovery_action_bt_node
       # - nav2_dock_recovery_bt_node
-      # - nav2_undock_recovery_bt_node      
+      # - nav2_undock_recovery_bt_node
     # error_code_names:
     #   - compute_path_error_code
     #   - follow_path_error_code
@@ -125,7 +125,7 @@ bt_navigator_navigate_to_pose_rclcpp_node:
 #       yaw_goal_tolerance: 0.1   # appx. 5.7 degrees
 #       stateful: True
 #     FollowPath:
-#       plugin: "nav2_mppi_controller::MPPIController"      
+#       plugin: "nav2_mppi_controller::MPPIController"
 #       time_steps: 20
 #       model_dt: 0.1  #Length of each time step’s dt timestep, in seconds. time_steps * model_dt is the prediction horizon.
 #       batch_size: 1000
@@ -146,7 +146,7 @@ bt_navigator_navigate_to_pose_rclcpp_node:
 #       iteration_count: 1
 #       prune_distance: 1.7  #Distance ahead of nearest point on path to robot to prune path to (m).
 #       transform_tolerance: 0.5  #Time tolerance for data transformations with TF (s).
-#       # max_robot_pose_search_dist: 
+#       # max_robot_pose_search_dist:
 #       temperature: 0.3
 #       gamma: 0.015
 #       motion_model: "DiffDrive"
@@ -392,7 +392,7 @@ local_costmap:
         inflation_radius: 0.35
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: false
+        enabled: true
         footprint_clearing_enabled: true
         observation_sources: zedScan
         zedScan:
@@ -451,7 +451,7 @@ global_costmap:
       robot_base_frame: base_link
       use_sim_time: false
       # footprint: "[ [0.14, 0.25], [0.14, -0.25], [-0.607, -0.25], [-0.607, 0.25] ]"
-      footprint: "[ [0.254, 0.2159], [0.254, -0.2159], [-0.254, -0.2159], [-0.254, 0.2159] ]"      
+      footprint: "[ [0.254, 0.2159], [0.254, -0.2159], [-0.254, -0.2159], [-0.254, 0.2159] ]"
       # rolling_window: True
       # width: 200
       # height: 200
@@ -518,12 +518,12 @@ global_costmap:
 map_saver:
   ros__parameters:
     use_sim_time: false
-    yaml_filename: ""    
+    yaml_filename: ""
     save_map_timeout: 5.0
     free_thresh_default: 0.25
     occupied_thresh_default: 0.65
     map_subscribe_transient_local: True
-    
+
 planner_server:
   ros__parameters:
     expected_planner_frequency: 5.0
@@ -628,22 +628,22 @@ waypoint_follower:
 
 
 #https://docs.nav2.org/configuration/packages/configuring-velocity-smoother.html
-velocity_smoother: 
-  ros__parameters: 
+velocity_smoother:
+  ros__parameters:
     use_realtime_priority: true #Adds soft real-time prioritization to the controller server to better ensure resources to time sensitive portions of the codebase. This will set the controller’s execution thread to a higher priority than the rest of the system (90) to meet scheduling deadlines to have less missed loop rates. To use this feature, you use set the following inside of /etc/security/limits.conf to give userspace access to elevated prioritization permissions: <username> soft rtprio 99 <username> hard rtprio 99
     use_sim_time: false
-    smoothing_frequency: 20.0 
-    scale_velocities: false 
-    feedback: "OPEN_LOOP" 
-    max_velocity: [0.5, 0.0, 1.0] 
-    min_velocity: [-0.5, 0.0, -1.0] 
-    deadband_velocity: [0.06, 0.0, 0.17]  
-    # deadband_velocity: [0.12, 0.0, 0.2] 
-    max_accel: [1.0, 0.0, 1.0] 
-    max_decel: [-1.0, 0.0, -1.0] 
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.5, 0.0, 1.0]
+    min_velocity: [-0.5, 0.0, -1.0]
+    deadband_velocity: [0.06, 0.0, 0.17]
+    # deadband_velocity: [0.12, 0.0, 0.2]
+    max_accel: [1.0, 0.0, 1.0]
+    max_decel: [-1.0, 0.0, -1.0]
     odom_topic: "<robot_namespace>/odom_converted"  #Topic to find robot odometry, if in CLOSED_LOOP operational mode.
     odom_duration: 0.1  #Time (s) to buffer odometry commands to estimate the robot speed, if in CLOSED_LOOP operational mode.
-    velocity_timeout: 1.0 
+    velocity_timeout: 1.0
 
 
 # docking_server:
@@ -677,7 +677,7 @@ velocity_smoother:
 #       external_detection_rotation_pitch: -1.57
 #       external_detection_rotation_yaw: 0.0
 #       filter_coef: 0.1
-    
+
 #     docks: ['charging_1', 'unloading_1']
 #     charging_1:
 #       type: "husky_dock"

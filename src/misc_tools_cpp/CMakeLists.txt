@@ -43,6 +43,18 @@ ament_target_dependencies(zedOdom_transformer_component rclcpp tf2 tf2_ros nav_m
 rclcpp_components_register_nodes(zedOdom_transformer_component "ZedOdomTransformer")
 
 
+add_executable(zedOdomVelRepublisherNode src/zedOdomVelRepublisher_main.cpp)
+ament_target_dependencies(zedOdomVelRepublisherNode rclcpp nav_msgs geometry_msgs tf2 tf2_geometry_msgs)
+
+# Install executables
+install(TARGETS
+  zedOdomVelRepublisherNode
+  # node2
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
+
 # Install executables
 install(TARGETS
   zedOdom_transformer_component

@@ -50,11 +50,11 @@ class StatusNode(Node):
         # Setting namespace for Node
         self.namespace = self.get_namespace().rstrip('/')
 
-        self.tf2_buffer = Buffer()
-        self.listener = TransformListener(self.tf2_buffer, self)
+        # self.tf2_buffer = Buffer()
+        # self.listener = TransformListener(self.tf2_buffer, self)
 
-        # Timer to periodically check robot pose
-        self.tf2_timer = self.create_timer(1.0, self.get_robot_pose)
+        # # Timer to periodically check robot pose
+        # self.tf2_timer = self.create_timer(1.0, self.get_robot_pose)
 
         # Subscriptions
         # Battery Topic
@@ -107,31 +107,31 @@ class StatusNode(Node):
         self.april_tag_docking = DockingActionClient(self)
         self.april_tag_undocking = UndockingActionClient(self)
 
-    def get_robot_pose(self):
-        try:
-            # Lookup transform from map -> base_link
-            now = Time()
-            transform: TransformStamped = self.tf2_buffer.lookup_transform(
-                'map',        # target frame
-                'base_link',  # source frame
-                now,
-                timeout=Duration(seconds=1)
-            )
+    # def get_robot_pose(self):
+    #     try:
+    #         # Lookup transform from map -> base_link
+    #         now = Time()
+    #         transform: TransformStamped = self.tf2_buffer.lookup_transform(
+    #             'map',        # target frame
+    #             'base_link',  # source frame
+    #             now,
+    #             timeout=Duration(seconds=1)
+    #         )
 
-            # Extract translation (robot position)
-            self.pose_status.position.x = transform.transform.translation.x
-            self.pose_status.position.y = transform.transform.translation.y
-            self.pose_status.position.z = transform.transform.translation.z
+    #         # Extract translation (robot position)
+    #         self.pose_status.position.x = transform.transform.translation.x
+    #         self.pose_status.position.y = transform.transform.translation.y
+    #         self.pose_status.position.z = transform.transform.translation.z
 
-            # Extract orientation quaternion
-            self.pose_status.orientation = transform.transform.rotation
-            # self.get_logger().info(
-            #     f"Robot pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, "
-            #     f"quat=({q.x:.3f}, {q.y:.3f}, {q.z:.3f}, {q.w:.3f})"
-            # )
+    #         # Extract orientation quaternion
+    #         self.pose_status.orientation = transform.transform.rotation
+    #         # self.get_logger().info(
+    #         #     f"Robot pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, "
+    #         #     f"quat=({q.x:.3f}, {q.y:.3f}, {q.z:.3f}, {q.w:.3f})"
+    #         # )
 
-        except Exception as e:
-            self.get_logger().warn(f"Could not get transform: {e}")
+    #     except Exception as e:
+    #         self.get_logger().warn(f"Could not get transform: {e}")
 
     def timer_callback(self):
         robot_status = RobotStatus()
@@ -553,24 +553,6 @@ class StatusNode(Node):
         if self.pose_status:
             robot_status.topo_map_position = self.pose_status.position
             robot_status.topo_map_orientation = self.pose_status.orientation
-
-        # now = Time()
-        # transform: TransformStamped = self.tf2_buffer.lookup_transform(
-        #     'map',        # target frame
-        #     'base_link',  # source frame
-        #     now,
-        #     timeout=Duration(seconds=1)
-        # )
-
-        # Extract translation (robot position)
-        # robot_status.topo_map_position.x = transform.transform.translation.x
-        # robot_status.topo_map_position.y = transform.transform.translation.y
-        # robot_status.topo_map_position.z = transform.transform.translation.z
-
-        # robot_status.topo_map_orientation.x = transform.transform.rotation.x
-        # robot_status.topo_map_orientation.y = transform.transform.rotation.y
-        # robot_status.topo_map_orientation.z = transform.transform.rotation.z
-        # robot_status.topo_map_orientation.w = transform.transform.rotation.w
 
         # if self.odom_status is not None:
         #     # Uncomment this section when using on actual robot
