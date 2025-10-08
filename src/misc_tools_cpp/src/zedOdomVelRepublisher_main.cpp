@@ -229,7 +229,12 @@ private:
 
     transformed_odom.pose.pose.position = final_translation;
     transformed_odom.pose.pose.orientation = final_rotation;
-    transformed_odom.pose.covariance = msg->pose.covariance;
+    // transformed_odom.pose.covariance = msg->pose.covariance;
+
+    for (int i = 0; i < 36; i++) transformed_odom.pose.covariance[i] = 0.0;
+    for (int i = 0; i < 6; i++) {
+        transformed_odom.pose.covariance[i*6 + i] = 0.001;  // small covariance on the diagonal
+    }
 
 
     // velocity calculation
@@ -253,7 +258,8 @@ private:
 
         Eigen::Vector3d v_lin = (p_now - p_last) / dt;  // linear velocity in odom frame
 
-        RCLCPP_INFO(this->get_logger(), "dt: %f, x(t): %f, x(t-1): %f, v_lin: %f", dt, p_now[0],p_last[0], v_lin[0]);
+        // for debug
+        RCLCPP_DEBUG(this->get_logger(), "dt: %f, x(t): %f, x(t-1): %f, v_lin: %f", dt, p_now[0],p_last[0], v_lin[0]);
 
         // Δorientation → angular velocity
         tf2::Quaternion q1, q2;

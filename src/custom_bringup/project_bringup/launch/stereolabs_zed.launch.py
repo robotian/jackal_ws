@@ -246,7 +246,17 @@ def generate_launch_description():
         name='depthimage_to_laserscan',
         parameters=[
             config_path_cvt,
-            {'output_frame': 'camera_0_left_camera_frame'},
+            {'output_frame': 'camera_0_left_camera_frame'},            
+            # {'qos_overrides': {
+            #     '/j100_0921/scan': {
+            #         'publisher': {
+            #             'reliability': 'best_effort',
+            #             # 'history': 'keep_last',
+            #             # 'depth': 100,
+            #             'durability': 'volatile',
+            #         }
+            #     }
+            # }},
             ],
         remappings=[
                 ('depth',  'sensors/camera_0/stereolabs_zed/depth/depth_registered'),  # (Todo) this should use the namespace /j100_0921/sensors/camera_0/stereolabs_zed/depth/camera_info
@@ -301,7 +311,7 @@ def generate_launch_description():
         composable_node_descriptions=[
                                     stereolabs_zed_node, 
                                     apriltag_component,
-                                    # zedOdomRepub_component,
+                                    # zedOdomRepub_component,  # it slows down the system a lot
                                     zed_cvt_component,
                                     ],
         output='screen',

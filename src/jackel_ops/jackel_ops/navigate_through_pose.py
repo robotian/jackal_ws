@@ -35,9 +35,10 @@ class NavigationActionClientUsingNTP:
         self.waypoints_list: list[WayPoint] = []
         self.goal_handle: client.ClientGoalHandle
         self.is_goal_cancelled: bool = False
+        self.retry_count: int = 0
 
         # Store last recorded waypoint
-        self.last_waypoint: Optional[int] = None
+        self.last_waypoint: int | None= None
         self.last_waypoint_index = 0
         self.current_status = RobotStatusEnum.START_MOVING
 
@@ -175,6 +176,11 @@ class NavigationActionClientUsingNTP:
             self.publish_status(
                 current_node_id,
                 self.task.target_node_id)
+
+            if self.retry_count <=3:
+                self.last_waypoint = None
+                self.last_waypoint_index = 0
+                self.send_goal(self.task)
 
         self.last_waypoint = None
         self.last_waypoint_index = 0

@@ -5,12 +5,12 @@ from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from rclpy.time import Time
-from sensor_msgs.msg import BatteryState, NavSatFix, Imu
 from tf_transformations import euler_from_quaternion
 from tf2_ros import Buffer, TransformListener
 
-from geometry_msgs.msg import TransformStamped, Pose
-from nav_msgs.msg import Odometry as Odom
+from geometry_msgs.msg import TransformStamped, Pose, PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry
+from sensor_msgs.msg import BatteryState, NavSatFix, Imu
 from std_msgs.msg import Bool, String
 from status_interfaces.msg import RobotStatus, Task, SubTask, WayPoint
 
@@ -40,7 +40,7 @@ class StatusNode(Node):
         self.task: Task = Task()
         self.gps_status: NavSatFix = NavSatFix()
         # self.odom_status: Odom = Odom()
-        self.pose_status: Pose = Pose()
+        self.pose_status: PoseWithCovarianceStamped = PoseWithCovarianceStamped()
         self.imu_status: Imu = Imu()
         self.estop_status: Bool = Bool()
         self.wpf_status: String = String()
@@ -50,12 +50,6 @@ class StatusNode(Node):
         # Setting namespace for Node
         self.namespace = self.get_namespace().rstrip('/')
 
-        # self.tf2_buffer = Buffer()
-        # self.listener = TransformListener(self.tf2_buffer, self)
-
-        # # Timer to periodically check robot pose
-        # self.tf2_timer = self.create_timer(1.0, self.get_robot_pose)
-
         # Subscriptions
         # Battery Topic
         self.battery_sub = self.create_subscription(
@@ -63,6 +57,14 @@ class StatusNode(Node):
             f'{self.namespace}/platform/bms/state',
             lambda msg: setattr(self, 'battery_status', msg),
             qos_profile_sensor_data)
+
+        # Local Pose of robot
+        self.pose_sub = self.create_subscription(
+                PoseWithCovarianceStamped,
+                f"{self.namespace}/rigidbody_1/pose",
+                lambda msg: setattr(self, 'pose_status', msg),
+                10
+            )
 
         # # NavSat Topic
         # self.navsat_sub = self.create_subscription(
@@ -106,32 +108,6 @@ class StatusNode(Node):
         self.navigation = NavigationActionClientUsingNTP(self)
         self.april_tag_docking = DockingActionClient(self)
         self.april_tag_undocking = UndockingActionClient(self)
-
-    # def get_robot_pose(self):
-    #     try:
-    #         # Lookup transform from map -> base_link
-    #         now = Time()
-    #         transform: TransformStamped = self.tf2_buffer.lookup_transform(
-    #             'map',        # target frame
-    #             'base_link',  # source frame
-    #             now,
-    #             timeout=Duration(seconds=1)
-    #         )
-
-    #         # Extract translation (robot position)
-    #         self.pose_status.position.x = transform.transform.translation.x
-    #         self.pose_status.position.y = transform.transform.translation.y
-    #         self.pose_status.position.z = transform.transform.translation.z
-
-    #         # Extract orientation quaternion
-    #         self.pose_status.orientation = transform.transform.rotation
-    #         # self.get_logger().info(
-    #         #     f"Robot pose: x={x:.3f}, y={y:.3f}, z={z:.3f}, "
-    #         #     f"quat=({q.x:.3f}, {q.y:.3f}, {q.z:.3f}, {q.w:.3f})"
-    #         # )
-
-    #     except Exception as e:
-    #         self.get_logger().warn(f"Could not get transform: {e}")
 
     def timer_callback(self):
         robot_status = RobotStatus()
@@ -551,8 +527,11 @@ class StatusNode(Node):
     def set_location_status(self, robot_status: RobotStatus):
 
         if self.pose_status:
-            robot_status.topo_map_position = self.pose_status.position
-            robot_status.topo_map_orientation = self.pose_status.orientation
+
+            # self.get_logger().info(f"Current Pose: {self.pose_status.pose.pose.position}")
+
+            robot_status.topo_map_position = self.pose_status.pose.pose.position
+            robot_status.topo_map_orientation = self.pose_status.pose.pose.orientation
 
         # if self.odom_status is not None:
         #     # Uncomment this section when using on actual robot

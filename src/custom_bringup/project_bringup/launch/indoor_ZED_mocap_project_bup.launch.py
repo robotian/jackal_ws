@@ -255,7 +255,7 @@ def generate_launch_description():
     zedodom_publisher_node = Node(
         package='misc_tools_cpp',  # Replace with your actual package name
         # executable='odom_transformer_node',  # The name of your Python script without the .py extension
-        executable='zedOdomVelRepublisherNode',  # The name of your Python script without the .py extension
+        executable='zedOdomVelRepublisherNode',  # The name of your Python script without the .py extension zedOdomVelRepublisherNode
         name='zedOdomRepublisherNode',
         output='screen',
         namespace=robot_namespace,
@@ -264,7 +264,7 @@ def generate_launch_description():
             # {'use_sim_time': LaunchConfiguration('use_sim_time')},     
             {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},  
             {'publish_tf': True},  # Set to True to publish the transform    
-            {'filter_window_size':3},
+            {'filter_window_size':1},
             ]
     )
 
