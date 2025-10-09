@@ -356,7 +356,7 @@ controller_server:
     odom_topic: <robot_namespace>/odom_converted
     goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.1   # in meters
+      xy_goal_tolerance: 0.2   # in meters
       yaw_goal_tolerance: 0.2   # appx. 5.7 degrees
       stateful: True
     progress_checker:
