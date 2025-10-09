@@ -123,7 +123,10 @@ def generate_launch_description():
                 respawn_delay=2.0,
                 parameters=[configured_params],
                 arguments=['--ros-args', '--log-level', log_level],
-                remappings=remappings  + [('cmd_vel', 'cmd_vel_nav'),('/trajectories','trajectories')]),
+                remappings=remappings  + [
+                    ('cmd_vel', 'cmd_vel_nav'),
+                    ('/trajectories','trajectories'),
+                    ]),
             Node(
                 package='nav2_smoother',
                 executable='smoother_server',
@@ -242,16 +245,16 @@ def generate_launch_description():
                 plugin='nav2_planner::PlannerServer',
                 name='planner_server',
                 parameters=[configured_params,
-                             {'qos_overrides': {
-                                '/j100_0921/scan': {
-                                    'subscriber': {
-                                        'reliability': 'best_effort',
-                                        # 'history': 'keep_last',
-                                        # 'depth': 100,
-                                        'durability': 'volatile',
-                                    }
-                                }
-                            }},
+                            #  {'qos_overrides': {
+                            #     '/j100_0921/scan': {
+                            #         'subscriber': {
+                            #             'reliability': 'best_effort',
+                            #             # 'history': 'keep_last',
+                            #             # 'depth': 100,
+                            #             'durability': 'volatile',
+                            #         }
+                            #     }
+                            # }},
                 ],
                 remappings=remappings),
             ComposableNode(
@@ -259,16 +262,16 @@ def generate_launch_description():
                 plugin='behavior_server::BehaviorServer',
                 name='behavior_server',
                 parameters=[configured_params,
-                            {'qos_overrides': {
-                                '/j100_0921/scan': {
-                                    'subscriber': {
-                                        'reliability': 'best_effort',
-                                        # 'history': 'keep_last',
-                                        # 'depth': 100,
-                                        'durability': 'volatile',
-                                    }
-                                }
-                            }},
+                            # {'qos_overrides': {
+                            #     '/j100_0921/scan': {
+                            #         'subscriber': {
+                            #             'reliability': 'best_effort',
+                            #             # 'history': 'keep_last',
+                            #             # 'depth': 100,
+                            #             'durability': 'volatile',
+                            #         }
+                            #     }
+                            # }},
                             ],
                 remappings=remappings),
             ComposableNode(
@@ -276,16 +279,16 @@ def generate_launch_description():
                 plugin='nav2_bt_navigator::BtNavigator',
                 name='bt_navigator',
                 parameters=[configured_params,
-                            {'qos_overrides': {
-                                '/j100_0921/scan': {
-                                    'subscriber': {
-                                        'reliability': 'best_effort',
-                                        # 'history': 'keep_last',
-                                        # 'depth': 100,
-                                        'durability': 'volatile',
-                                    }
-                                }
-                            }},
+                            # {'qos_overrides': {
+                            #     '/j100_0921/scan': {
+                            #         'subscriber': {
+                            #             'reliability': 'best_effort',
+                            #             # 'history': 'keep_last',
+                            #             # 'depth': 100,
+                            #             'durability': 'volatile',
+                            #         }
+                            #     }
+                            # }},
                             ],
                 remappings=remappings),
             ComposableNode(

@@ -239,6 +239,7 @@ private:
 
     // velocity calculation
     rclcpp::Time current_time = msg->header.stamp;
+    RCLCPP_DEBUG(this->get_logger(), "Msg time: sec=%d, nanosec=%d", msg->header.stamp.sec, msg->header.stamp.nanosec);
     if (last_pose_initialized_) {
 
       double dt = (current_time - last_time_).seconds();
