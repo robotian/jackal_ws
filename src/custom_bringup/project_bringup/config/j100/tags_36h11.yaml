@@ -19,7 +19,7 @@
 
         # optional list of tags
         tag:
-            ids: [1, 2, 9]            # tag ID
+            ids: [1, 2, 9, 5]            # tag ID
             # dock_ids: [1]            # dock ids
             # frames: [base, object]  # optional frame name
-            sizes: [0.08, 0.08, 0.24]   # optional tag-specific edge size
+            sizes: [0.08, 0.08, 0.24, 0.24]   # optional tag-specific edge size

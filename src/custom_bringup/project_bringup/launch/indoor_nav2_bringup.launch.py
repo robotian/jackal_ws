@@ -44,7 +44,7 @@ def generate_launch_description():
     use_composition = LaunchConfiguration('use_composition')
     use_respawn = LaunchConfiguration('use_respawn')
     log_level = LaunchConfiguration('log_level')
-    
+
     rviz_config_file = LaunchConfiguration('rviz_config')
     use_rviz = LaunchConfiguration('use_rviz')
 
@@ -78,16 +78,16 @@ def generate_launch_description():
             param_rewrites=param_substitutions,
             convert_types=True),
         allow_substs=True)
-    
+
 
     stdout_linebuf_envvar = SetEnvironmentVariable(
         'RCUTILS_LOGGING_BUFFERED_STREAM', '1')
-    
+
     # declare_rviz_config_file_cmd = DeclareLaunchArgument(
     #     'rviz_config',
     #     default_value=os.path.join(bringup_dir, 'rviz', 'nav2_namespaced_view.rviz'),
     #     description='Full path to the RVIZ config file to use.')
-    
+
     # declare_use_rviz_cmd = DeclareLaunchArgument(
     #     'use_rviz',
     #     default_value='True',
@@ -110,7 +110,7 @@ def generate_launch_description():
 
     declare_map_yaml_cmd = DeclareLaunchArgument(
         'map',
-        default_value=os.path.join(bringup_dir, 'map', 'rtabmap_lab2.yaml'),
+        default_value=os.path.join(bringup_dir, 'map', 'indoor_test_scene2.yaml'),
         description='Full path to map yaml file to load')
 
     declare_use_sim_time_cmd = DeclareLaunchArgument(
@@ -155,7 +155,7 @@ def generate_launch_description():
             arguments=['--ros-args', '--log-level', log_level],
             remappings=remappings,
             emulate_tty=True,
-            output='screen'),        
+            output='screen'),
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(launch_dir,

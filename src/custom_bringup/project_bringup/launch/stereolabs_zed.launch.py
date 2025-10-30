@@ -312,7 +312,7 @@ def generate_launch_description():
                                     stereolabs_zed_node, 
                                     apriltag_component,
                                     # zedOdomRepub_component,  # it slows down the system a lot
-                                    zed_cvt_component,
+                                    # zed_cvt_component,
                                     ],
         output='screen',
         remappings=remappings,
@@ -325,7 +325,6 @@ def generate_launch_description():
     ld.add_action(arg_namespace)
     ld.add_action(arg_robot_namespace)
     ld.add_action(arg_config_path_cvt)
-    # ld.add_action(zed_cvt_component) 
     ld.add_action(declare_apriltag_config_cmd)
     ld.add_action(image_processing_container) 
     
