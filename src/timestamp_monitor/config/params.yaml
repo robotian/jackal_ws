@@ -1,0 +1,8 @@
+/*/timestamp_monitor_node:
+  ros__parameters:
+    topics:
+      - '/j100_0921/sensors/imu_0/data'
+      - '/topic2'
+    msg_types:
+      - 'sensor_msgs/msg/Imu'
+      - 'sensor_msgs/Image'
