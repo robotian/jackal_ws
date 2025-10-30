@@ -1,0 +1,13 @@
+# This is the configuration file for the header_timestamp_logger node.
+# Add any topics you want to monitor to the 'topic_names' list.
+# The node will automatically discover their types and subscribe.
+/*/header_timestamp_logger:
+  ros__parameters:
+    topic_names:
+      - '/scan'
+      - 'camera/image_raw'
+      - '/odometry/filtered'
+    msg_types:
+      - 'std_msgs/Header'
+      - 'sensor_msgs/Image'
+      - 'sensor_msgs/Image'
