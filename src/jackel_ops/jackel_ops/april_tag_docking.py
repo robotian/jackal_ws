@@ -59,16 +59,15 @@ class DockingActionClient:
 
         self.sub_task = task
 
-        if isinstance(self.sub_task.data, DockGoal):
+        if isinstance(self.sub_task.dock_goal, DockGoal):
             try:
                 # docking_json = json.loads(self.sub_task.data)
                 self.docking_data = self.sub_task.dock_goal
-                logger.warning(f"Current docking Goal: {self.sub_task.dock_goal}")
+                logger.info(f"Current docking Goal: {self.sub_task.dock_goal}")
+                self.docking_robot()
             except Exception as e:
                 logger.error(f"Failed to parse DockingGoal: {e}")
                 return
-
-        self.docking_robot()
 
     def docking_robot(self):
         if not self.docking_data:

@@ -1,3 +1,8 @@
+########################################
+## THIS IS OBSOLETE SCRIPT DO NOT USE ##
+########################################
+
+
 from dataclasses import asdict
 import json
 import math

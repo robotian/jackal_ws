@@ -1,3 +1,8 @@
+########################################
+## THIS IS OBSOLETE SCRIPT DO NOT USE ##
+########################################
+
+
 import json
 import pyproj
 import rclpy
@@ -69,7 +74,7 @@ class StatusNode(Node):
         # # NavSat Topic
         # self.navsat_sub = self.create_subscription(
         #     NavSatFix,
-        #     f'{self.namespace}/sensors/gps_0/nmea_sentence',
+        #     f'{self.namespace}/sensors/gps_0/fix',
         #     lambda msg: setattr(self, 'gps_status', msg),
         #     qos_profile_sensor_data)
 
@@ -134,9 +139,6 @@ class StatusNode(Node):
             self.get_logger().info(f"No Task received for the robot {self.namespace}")
             return
 
-        # # Converting string to dataclass for Task
-        # data_dict = json.loads(self.task_status.data)
-        # task = Task(**data_dict)
         self.current_task = self.task
         # self.get_logger().info(f"Current Task: {self.current_task.description}")
 

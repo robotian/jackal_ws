@@ -59,16 +59,15 @@ class UndockingActionClient:
 
         self._sub_task = task
 
-        if isinstance(self._sub_task.data, UndockGoal):
+        if isinstance(self._sub_task.undock_goal, UndockGoal):
             try:
                 # undocking_json = json.loads(self._sub_task.data)
-                self._undocking_data = self._sub_task.data
-                logger.info(f"Undocking Goal Data: {self._sub_task.data}")
+                self._undocking_data = self._sub_task.undock_goal
+                logger.info(f"Undocking Goal Data: {self._sub_task.undock_goal}")
+                self.undocking_robot()
             except Exception as e:
                 logger.error(f"Failed to parse UndockingGoal: {e}")
                 return
-
-        self.undocking_robot()
 
     def undocking_robot(self):
         if not self._undocking_data:
