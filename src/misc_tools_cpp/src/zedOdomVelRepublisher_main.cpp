@@ -271,13 +271,19 @@ private:
         tf2::Quaternion q_rel = q1.inverse() * q2;
         q_rel.normalize();
 
-        double angle = q_rel.getAngle();  // rotation angle
-        tf2::Vector3 axis = q_rel.getAxis();
-
-        Eigen::Vector3d v_ang(0.0, 0.0, 0.0);
-        if (fabs(angle) > 1e-9) {
-            v_ang = Eigen::Vector3d(axis.x(), axis.y(), axis.z()) * (angle / dt);
+        // Robust angular velocity calculation from relative quaternion.
+        // To avoid spikes when orientation crosses 0/360 deg, enforce a
+        // consistent quaternion sign (q and -q represent the same rotation)
+        // and use the small-angle approximation:
+        //   q_rel ~= [w, x, y, z] = [1, 0.5*omega*dt]
+        // so omega ~= 2 * vec(q_rel) / dt
+        if (q_rel.w() < 0.0) {
+          q_rel = tf2::Quaternion(-q_rel.x(), -q_rel.y(), -q_rel.z(), -q_rel.w());
         }
+
+        // vector part of quaternion
+        tf2::Vector3 qv(q_rel.x(), q_rel.y(), q_rel.z());
+        Eigen::Vector3d v_ang = Eigen::Vector3d(qv.x(), qv.y(), qv.z()) * (2.0 / dt);
 
         // store in buffer
         lin_vel_buffer_.push_back(v_lin);
