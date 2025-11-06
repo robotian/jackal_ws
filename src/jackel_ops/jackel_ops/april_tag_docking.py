@@ -1,38 +1,25 @@
-from dataclasses import asdict
-import json
-import os
-from rclpy.action import ActionClient, client
-from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.node import Node
+from rclpy.action import ActionClient
+from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.task import Future
 from action_msgs.msg import GoalStatus
-from std_msgs.msg import String
 
-from opennav_docking_msgs.action._dock_robot import DockRobot_FeedbackMessage
 from opennav_docking_msgs.action import DockRobot
+from opennav_docking_msgs.action._dock_robot import DockRobot_FeedbackMessage
 from status_interfaces.msg import SubTask, DockGoal
-
 from jackel_ops.dataclass import DockingFeedback
 from jackel_ops.enum import RobotStatusEnum
 
-logger = RcutilsLogger(os.path.basename(__file__))
-
 
 class DockingActionClient:
+    """Action client for handling robot docking."""
+
     def __init__(self, node: Node):
-        # super().__init__('april_tag_docking')
-        logger.info("AprilTag Docking Node has been started.")
         self.node = node
+        self.logger = RcutilsLogger(self.__class__.__name__)
         self.namespace = self.node.get_namespace().rstrip('/')
 
-        self.docking_data: DockGoal
-        self.sub_task: SubTask
-        self.goal_handle: client.ClientGoalHandle
-        self.current_status = RobotStatusEnum.START_DOCKING
-
-        self.feedback_state: int = 0
-        self.docking_time = 0
-
+        # Status mapping for action result codes
         self.status_map = {
             GoalStatus.STATUS_ACCEPTED: RobotStatusEnum.DOCKING,
             GoalStatus.STATUS_EXECUTING: RobotStatusEnum.DOCKING,
@@ -42,166 +29,207 @@ class DockingActionClient:
             GoalStatus.STATUS_CANCELED: RobotStatusEnum.IDLE,
         }
 
-        self.publisher = self.node.create_publisher(
-            String, f'{self.namespace}/status/robot/docking', 10)
+        # Internal state
+        self._sub_task: SubTask | None = None
+        self._docking_data: DockGoal | None = None
+        self._goal_handle = None
+        self._current_status = RobotStatusEnum.IDLE
+        self._feedback_data: DockingFeedback | None = None
+        self._feedback_state: int = 0
+        self._docking_time = 0.0
 
+        # Initialize action client
         self.client = ActionClient(
-            self.node, DockRobot, f'{self.namespace}/dock_robot')
-
-        logger.info(
-            f"Docking action client has been started. Client ID: {self.client._action_name}")
-
-    def send_docking_goal(self, task: SubTask | None):
-        if not task:
-            logger.warning(
-                f"Warning while sending Goal: {task}")
-            return
-
-        self.sub_task = task
-
-        if isinstance(self.sub_task.dock_goal, DockGoal):
-            try:
-                # docking_json = json.loads(self.sub_task.data)
-                self.docking_data = self.sub_task.dock_goal
-                logger.info(f"Current docking Goal: {self.sub_task.dock_goal}")
-                self.docking_robot()
-            except Exception as e:
-                logger.error(f"Failed to parse DockingGoal: {e}")
-                return
-
-    def docking_robot(self):
-        if not self.docking_data:
-            logger.error("Docking data not found. Failed to send goal.")
-            return
-
-        goal_msg = DockRobot.Goal()
-        goal_msg.dock_id = self.docking_data.dock_id
-        goal_msg.navigate_to_staging_pose = self.docking_data.navigate_to_staging_pose
-
-        logger.info("Sending DockRobot action goal.")
-
-        # Wait on server
-        if not self.client.wait_for_server(timeout_sec=5.0):
-            logger.warning("Docking action server not available!")
-            return
-
-        # Send goal
-        future = self.client.send_goal_async(
-            goal_msg,
-            feedback_callback=self.feedback_callback,
+            self.node,
+            DockRobot,
+            f'{self.namespace}/dock_robot'
         )
-        # This is the callback for when the goal is done.
-        future.add_done_callback(self.done_callback)
 
-    def cancel_docking(self, future: Future):
-        if self.goal_handle is not None:
-            self.goal_handle.cancel_goal_async()
+        self.logger.info(
+            f"Docking action client initialized for {self.namespace}")
 
-    # Receive feedback from the action server.
-    # Till the robot is docked, the feedback will be published.
-    def feedback_callback(self, feedback_msg: DockRobot_FeedbackMessage):
+    # ------------------------------------------------------------------
+    # Core Interface Methods
+    # ------------------------------------------------------------------
+
+    def send_docking_goal(self, subtask: SubTask | None) -> bool:
+        """Send a docking goal using the given SubTask."""
+        if not subtask or not isinstance(subtask, SubTask):
+            self.logger.error("Invalid SubTask provided for docking goal.")
+            return False
+
+        self._sub_task = subtask
+        self._docking_data = subtask.dock_goal if isinstance(
+            subtask.dock_goal, DockGoal) else None
+
+        if not self._docking_data:
+            self.logger.error("Docking goal data missing in SubTask.")
+            return False
+
+        dock_goal_msg = DockRobot.Goal()
+        dock_goal_msg.dock_id = self._docking_data.dock_id
+        dock_goal_msg.navigate_to_staging_pose = self._docking_data.navigate_to_staging_pose
+
+        self.logger.info(
+            f"Sending docking goal: dock_id={dock_goal_msg.dock_id}, "
+            f"navigate_to_staging={dock_goal_msg.navigate_to_staging_pose}"
+        )
+
+        if not self.client.wait_for_server(timeout_sec=5.0):
+            self.logger.error("Docking action server not available.")
+            self._current_status = RobotStatusEnum.ERROR
+            return False
+
+        self._current_status = RobotStatusEnum.START_DOCKING
+        future = self.client.send_goal_async(
+            dock_goal_msg,
+            feedback_callback=self._feedback_callback
+        )
+        future.add_done_callback(self._goal_response_callback)
+
+        return True
+
+    def cancel_goal(self) -> bool:
+        """Cancel the current docking goal."""
+        if not self._goal_handle:
+            self.logger.warning("No docking goal to cancel.")
+            return False
+
+        self.logger.info("Canceling docking goal...")
+        future = self._goal_handle.cancel_goal_async()
+        future.add_done_callback(self._goal_canceled_callback)
+        return True
+
+    def reset(self) -> None:
+        """Reset the docking client to idle."""
+        self._current_status = RobotStatusEnum.IDLE
+        self._goal_handle = None
+        self._feedback_data = None
+        self._feedback_state = 0
+        self._docking_time = 0.0
+        self.logger.info("Docking client reset to IDLE")
+
+    def get_status(self) -> RobotStatusEnum:
+        """Return current docking process status."""
+        return self._current_status
+
+    def get_feedback(self) -> DockingFeedback | None:
+        """Return the latest DockingFeedback data."""
+        return self._feedback_data
+
+    # ------------------------------------------------------------------
+    # Action Client Callbacks
+    # ------------------------------------------------------------------
+
+    def _goal_response_callback(self, future: Future):
+        """Handle response from action server when sending goal."""
+        result = future.result()
+        if not result:
+            self.logger.error("Failed to receive goal handle for docking.")
+            self._current_status = RobotStatusEnum.ERROR
+            return
+
+        self._goal_handle = result
+
+        if not self._goal_handle.accepted:
+            self.logger.error("Docking goal was rejected by server.")
+            self._current_status = RobotStatusEnum.ERROR
+            return
+
+        self.logger.info("Docking goal accepted by action server.")
+        self._current_status = RobotStatusEnum.DOCKING
+
+        # Attach result listener
+        self._goal_handle.get_result_async().add_done_callback(self._result_callback)
+
+    def _goal_canceled_callback(self, future: Future):
+        """Handle goal cancel response."""
+        cancel_response = future.result()
+        if cancel_response and cancel_response.return_code == 0:
+            self.logger.info("Docking goal successfully canceled.")
+            self._current_status = RobotStatusEnum.IDLE
+        else:
+            self.logger.warning("Docking goal cancellation failed.")
+            self._current_status = RobotStatusEnum.ERROR
+
+    def _feedback_callback(self, feedback_msg: DockRobot_FeedbackMessage):
+        """Process feedback from the action server during docking."""
         feedback: DockRobot.Feedback = feedback_msg.feedback
-
-        # logger.info(f"Feedback received: {feedback}")
-
         feedback_state = feedback.state
-        feedback_state_str: str = ""
 
+        # Map feedback state string
         feedback_state_str = {
-            GoalStatus.STATUS_ACCEPTED: "ACCEPTED.",
-            GoalStatus.STATUS_EXECUTING: "EXECUTING.",
-            GoalStatus.STATUS_CANCELING: "CANCELING.",
-            GoalStatus.STATUS_SUCCEEDED: "SUCCEEDED.",
+            GoalStatus.STATUS_ACCEPTED: "ACCEPTED",
+            GoalStatus.STATUS_EXECUTING: "EXECUTING",
+            GoalStatus.STATUS_CANCELING: "CANCELING",
+            GoalStatus.STATUS_SUCCEEDED: "SUCCEEDED",
             GoalStatus.STATUS_ABORTED: "ABORTED",
             GoalStatus.STATUS_CANCELED: "CANCELED"
         }.get(feedback_state, "UNKNOWN")
 
-        # publish the docking status till the robot is docked
+        # Log only when state changes
+        if self._feedback_state != feedback_state:
+            self._feedback_state = feedback_state
+            self.logger.info(
+                f"Docking feedback: {feedback_state_str} | "
+                f"Time: {feedback.docking_time.sec}s | "
+                f"Retries: {feedback.num_retries}"
+            )
+            self._docking_time = feedback.docking_time.sec
+            self._current_status = self.status_map.get(
+                feedback_state, self._current_status)
 
-        if self.feedback_state != feedback_state:
-            self.feedback_state = feedback_state
-            logger.info(
-                f"Feedback received: {feedback.state} | "
-                f"Docking Action: {feedback_state_str} | "
-                f"Docking time: {feedback.docking_time.sec} seconds | "
-                f"Number of Retry: {feedback.num_retries}")
-
-            self.docking_time = feedback.docking_time.sec
-
-            self.current_status = self.status_map.get(
-                feedback_state, self.current_status)
-
-        status = DockingFeedback(
-            status=self.current_status.value,
-            task=self.sub_task.description,
-            docking_location=self.docking_data.dock_id,
+        # Update feedback data
+        self._feedback_data = DockingFeedback(
+            status=self._current_status.value,
+            task=self._sub_task.description if self._sub_task else "Docking Task",
+            docking_location=self._docking_data.dock_id if self._docking_data else "unknown",
             feedback_message=feedback_state_str,
-            docking_time=self.docking_time,
+            docking_time=self._docking_time,
             num_retries=feedback.num_retries
         )
 
-        docking_msg = String()
-        docking_msg.data = json.dumps(asdict(status))
-        self.publisher.publish(docking_msg)
-
-    def done_callback(self, future: Future):
-        result = future.result()
-
-        if result is None:
-            logger.error(
-                "Result is None for Docking. Action server may not have completed successfully.")
-            return
-
-        self.goal_handle = result
-
-        if not self.goal_handle.accepted:
-            logger.info('Goal rejected :(')
-            return
-
-        logger.info('Goal accepted :)')
-        future_result = self.goal_handle.get_result_async()
-        future_result.add_done_callback(self.result_callback)
-
-    def result_callback(self, future: Future):
-        # DockRobot_GetResult_Response
+    def _result_callback(self, future: Future):
+        """Process final docking result."""
         response = future.result()
-        if response is not None:
-            status_str: str
-            status = response.status
-            result: DockRobot.Result = response.result
-
-            logger.info(f"Result: {result}")
-
-            # Process the result
-            status_str = {
-                GoalStatus.STATUS_SUCCEEDED: "SUCCEEDED",
-                GoalStatus.STATUS_ABORTED: "ABORTED",
-                GoalStatus.STATUS_CANCELED: "CANCELED"
-            }.get(status, "UNKNOWN")
-
-            self.current_status = self.status_map.get(
-                status, self.current_status)
-
-            logger.info(
-                f"Result: Success: {result.success} | Error Code: {result.error_code} | "
-                f"Message: {status_str} | Number of Retry: {result.num_retries}")
-
-            status = DockingFeedback(
-                status=self.current_status.value,
-                task=self.sub_task.description,
-                docking_location=self.docking_data.dock_id,
-                feedback_message=status_str,
-                docking_time=self.docking_time,
-                num_retries=result.num_retries
-            )
-
-            logger.info(
-                f"Result message: {status}")
-
-            docking_msg = String()
-            docking_msg.data = json.dumps(asdict(status))
-            self.publisher.publish(docking_msg)
-        else:
-            logger.info(
-                "Result is None. Action server may not have completed successfully.")
+        if not response:
+            self.logger.error("No result received from docking action.")
+            self._current_status = RobotStatusEnum.ERROR
             return
+
+        status = response.status
+        result: DockRobot.Result = response.result
+
+        self.logger.debug(f"Docking Result: {result}, Status: {status}")
+
+        status_name = {
+            GoalStatus.STATUS_SUCCEEDED: "SUCCEEDED",
+            GoalStatus.STATUS_ABORTED: "ABORTED",
+            GoalStatus.STATUS_CANCELED: "CANCELED",
+        }.get(status, "UNKNOWN")
+
+        self.logger.info(
+            f"Docking result: {status_name} | "
+            f"Success: {result.success} | "
+            f"Error Code: {result.error_code} | "
+            f"Retries: {result.num_retries}"
+        )
+
+        # Map to RobotStatusEnum
+        self._current_status = self.status_map.get(
+            status, RobotStatusEnum.ERROR)
+
+        # Build final feedback object
+        self._feedback_data = DockingFeedback(
+            status=self._current_status.value,
+            task=self._sub_task.description if self._sub_task else "Docking Task",
+            docking_location=self._docking_data.dock_id if self._docking_data else "unknown",
+            feedback_message=status_name,
+            docking_time=self._docking_time,
+            num_retries=result.num_retries,
+        )
+
+        self.logger.info(
+            f"Docking complete: {self._feedback_data.feedback_message}, "
+            f"status={self._feedback_data.status}"
+        )

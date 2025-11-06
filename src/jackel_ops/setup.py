@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'system_status = jackel_ops.status_node:main',
+            'system_status = jackel_ops.status:main',
         ],
     },
 )

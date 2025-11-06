@@ -1,38 +1,24 @@
-from dataclasses import asdict
-import json
-import os
 from rclpy.node import Node
-from rclpy.action import ActionClient, client
+from rclpy.action import ActionClient
 from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.task import Future
 from action_msgs.msg import GoalStatus
-from std_msgs.msg import String
 
-from opennav_docking_msgs.action._undock_robot import UndockRobot_FeedbackMessage
 from opennav_docking_msgs.action import UndockRobot
 from status_interfaces.msg import SubTask, UndockGoal
-
 from jackel_ops.dataclass import DockingFeedback
 from jackel_ops.enum import RobotStatusEnum
 
-logger = RcutilsLogger(os.path.basename(__file__))
-
 
 class UndockingActionClient:
+    """Action client for handling robot undocking."""
+
     def __init__(self, node: Node):
-        # super().__init__('april_tag_undocking')
-        logger.info("AprilTag Undocking Node has been started.")
         self.node = node
+        self.logger = RcutilsLogger(self.__class__.__name__)
         self.namespace = self.node.get_namespace().rstrip('/')
 
-        self._undocking_data: UndockGoal
-        self._sub_task: SubTask
-        self._goal_handle: client.ClientGoalHandle
-        self._current_status = RobotStatusEnum.START_DOCKING
-
-        self._feedback_state: int = 0
-        self._docking_time = 0
-
+        # Status mapping for action result codes
         self.status_map = {
             GoalStatus.STATUS_ACCEPTED: RobotStatusEnum.UNDOCKING,
             GoalStatus.STATUS_EXECUTING: RobotStatusEnum.UNDOCKING,
@@ -42,102 +28,157 @@ class UndockingActionClient:
             GoalStatus.STATUS_CANCELED: RobotStatusEnum.IDLE,
         }
 
-        self.publisher = self.node.create_publisher(
-            String, f'{self.namespace}/status/robot/undocking', 10)
+        # Internal state
+        self._sub_task: SubTask | None = None
+        self._undocking_data: UndockGoal | None = None
+        self._goal_handle = None
+        self._current_status = RobotStatusEnum.IDLE
+        self._feedback_data: DockingFeedback | None = None
+        self._docking_time = 0.0
 
+        # Initialize action client
         self.client = ActionClient(
-            self.node, UndockRobot, f'{self.namespace}/undock_robot')
+            self.node,
+            UndockRobot,
+            f'{self.namespace}/undock_robot'
+        )
 
-        logger.info(
-            f"Undocking action client has been started. Client ID: {self.client._action_name}")
+        self.logger.info(f"Undocking action client initialized for {self.namespace}")
 
-    def send_undocking_goal(self, task: SubTask | None):
-        if not task:
-            logger.warning(
-                f"Warning while sending Goal: {task}")
-            return
+    # ------------------------------------------------------------------
+    # Core Interface Methods
+    # ------------------------------------------------------------------
 
-        self._sub_task = task
+    def send_undocking_goal(self, subtask: SubTask | None) -> bool:
+        """Send an undocking goal using the given SubTask."""
+        if not subtask or not isinstance(subtask, SubTask):
+            self.logger.error("Invalid SubTask provided for undocking goal.")
+            return False
 
-        if isinstance(self._sub_task.undock_goal, UndockGoal):
-            try:
-                # undocking_json = json.loads(self._sub_task.data)
-                self._undocking_data = self._sub_task.undock_goal
-                logger.info(f"Undocking Goal Data: {self._sub_task.undock_goal}")
-                self.undocking_robot()
-            except Exception as e:
-                logger.error(f"Failed to parse UndockingGoal: {e}")
-                return
+        self._sub_task = subtask
+        self._undocking_data = subtask.undock_goal if isinstance(subtask.undock_goal, UndockGoal) else None
 
-    def undocking_robot(self):
         if not self._undocking_data:
-            logger.error("Undocking data is missing. Failed to send goal.")
-            return
+            self.logger.error("Undocking goal data missing in SubTask.")
+            return False
 
         undock_goal_msg = UndockRobot.Goal()
         undock_goal_msg.dock_type = self._undocking_data.dock_type
         undock_goal_msg.max_undocking_time = self._undocking_data.max_undocking_time
 
-        logger.info("Sending UndockRobot action goal.")
+        self.logger.info(
+            f"Sending undocking goal: dock_type={undock_goal_msg.dock_type}, "
+            f"max_time={undock_goal_msg.max_undocking_time}s"
+        )
 
         if not self.client.wait_for_server(timeout_sec=5.0):
-            logger.info("Undocking action server not available!")
-            return
+            self.logger.error("Undocking action server not available.")
+            self._current_status = RobotStatusEnum.ERROR
+            return False
 
-        # Send goal
+        self._current_status = RobotStatusEnum.START_UNDOCKING
         future = self.client.send_goal_async(undock_goal_msg)
-        future.add_done_callback(self.done_callback)
+        future.add_done_callback(self._goal_response_callback)
 
-    def done_callback(self, future: Future):
+        return True
+
+    def cancel_goal(self) -> bool:
+        """Cancel the current undocking goal."""
+        if not self._goal_handle:
+            self.logger.warning("No undocking goal to cancel.")
+            return False
+
+        self.logger.info("Canceling undocking goal...")
+        future = self._goal_handle.cancel_goal_async()
+        future.add_done_callback(self._goal_canceled_callback)
+        return True
+
+    def reset(self) -> None:
+        """Reset the undocking client to idle."""
+        self._current_status = RobotStatusEnum.IDLE
+        self._goal_handle = None
+        self._feedback_data = None
+        self._docking_time = 0.0
+        self.logger.info("Undocking client reset to IDLE")
+
+    def get_status(self) -> RobotStatusEnum:
+        """Return current undocking process status."""
+        return self._current_status
+
+    def get_feedback(self) -> DockingFeedback | None:
+        """Return the latest DockingFeedback data."""
+        return self._feedback_data
+
+    # ------------------------------------------------------------------
+    # Action Client Callbacks
+    # ------------------------------------------------------------------
+
+    def _goal_response_callback(self, future: Future):
+        """Handle response from action server when sending goal."""
         result = future.result()
-        if result is None:
-            logger.error("Undocking goal result is None.")
+        if not result:
+            self.logger.error("Failed to receive goal handle for undocking.")
+            self._current_status = RobotStatusEnum.ERROR
             return
 
         self._goal_handle = result
 
         if not self._goal_handle.accepted:
-            logger.warning("Undocking Goal was rejected.")
-            self._active_goal = False
+            self.logger.error("Undocking goal was rejected by server.")
+            self._current_status = RobotStatusEnum.ERROR
             return
 
-        logger.info("Undocking Goal was accepted.")
-        future_result = self._goal_handle.get_result_async()
-        future_result.add_done_callback(self.result_callback)
+        self.logger.info("Undocking goal accepted by action server.")
+        self._current_status = RobotStatusEnum.UNDOCKING
 
-    def result_callback(self, future: Future):
-        # DockRobot_GetResult_Response
+        # Attach feedback listener
+        self._goal_handle.get_result_async().add_done_callback(self._result_callback)
+
+    def _goal_canceled_callback(self, future: Future):
+        """Handle goal cancel response."""
+        cancel_response = future.result()
+        if cancel_response and cancel_response.return_code == 0:
+            self.logger.info("Undocking goal successfully canceled.")
+            self._current_status = RobotStatusEnum.IDLE
+        else:
+            self.logger.warning("Undocking goal cancellation failed.")
+            self._current_status = RobotStatusEnum.ERROR
+
+    def _result_callback(self, future: Future):
+        """Process final undocking result."""
         response = future.result()
-        if response is None:
-            logger.error("Undocking result callback received None.")
+        if not response:
+            self.logger.error("No result received from undocking action.")
+            self._current_status = RobotStatusEnum.ERROR
             return
 
         status = response.status
         result: UndockRobot.Result = response.result
 
-        logger.info(f"Undocking Result: {result}, Status: {status}")
+        self.logger.debug(f"Undocking Result: {result}, Status: {status}")
 
-        # Process the result
-        status_str: str = {
+        status_name = {
             GoalStatus.STATUS_SUCCEEDED: "SUCCEEDED",
             GoalStatus.STATUS_ABORTED: "ABORTED",
-            GoalStatus.STATUS_CANCELED: "CANCELED"
+            GoalStatus.STATUS_CANCELED: "CANCELED",
         }.get(status, "UNKNOWN")
 
-        self._current_status = self.status_map.get(
-            status, self._current_status)
+        self.logger.info(f"Undocking result received: {status_name}")
 
-        status = DockingFeedback(
+        # Map to RobotStatusEnum
+        self._current_status = self.status_map.get(status, RobotStatusEnum.ERROR)
+
+        # Build feedback object
+        self._feedback_data = DockingFeedback(
             status=self._current_status.value,
-            task=self._sub_task.description,
-            docking_location=self._undocking_data.dock_type,
-            feedback_message=status_str,
+            task=self._sub_task.description if self._sub_task else "Undocking Task",
+            docking_location=self._undocking_data.dock_type if self._undocking_data else "unknown",
+            feedback_message=status_name,
             docking_time=self._docking_time,
-            num_retries=-1
+            num_retries=-1,
         )
 
-        undocking_msg = String()
-        undocking_msg.data = json.dumps(asdict(status))
-        self.publisher.publish(undocking_msg)
-
-        logger.info(f"Publishing Undock status message: {status}")
+        self.logger.info(
+            f"Undocking complete: {self._feedback_data.feedback_message}, "
+            f"status={self._feedback_data.status}"
+        )

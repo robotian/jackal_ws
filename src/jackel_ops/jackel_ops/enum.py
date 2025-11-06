@@ -32,12 +32,15 @@ class OnlineFlagEnum(Enum):
 class NavigationStatus(Enum):
     """Navigation status enumeration."""
     IDLE = 0
-    GOAL_SENT = 1
-    NAVIGATING = 2
-    SUCCEEDED = 3
-    FAILED = 4
-    CANCELLED = 5
+    SENDING = 1
+    ACCEPTED = 2
+    REJECTED = 3
+    ACTIVE = 4
+    SUCCEEDED = 5
     ABORTED = 6
+    CANCELED = 7
+    FAILED = 8
+    ERROR = 9
 
 
 class RobotStatusEnum(Enum):

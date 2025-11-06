@@ -1,119 +1,160 @@
-from dataclasses import asdict
-import json
+"""
+Navigation Action Client using NavigateThroughPoses for robot navigation.
+
+This module provides a client interface for sending navigation goals to Nav2's
+NavigateThroughPoses action server and tracking navigation status.
+"""
 import math
-import os
-import time
 from transforms3d import euler
 
-import action_msgs
 import action_msgs.srv
 from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.node import Node
-from rclpy.action import ActionClient, client
+from rclpy.action import ActionClient
+from rclpy.action.client import ClientGoalHandle
 from rclpy.task import Future
 
 from geometry_msgs.msg import PoseStamped, Pose
 from nav2_msgs.action import NavigateThroughPoses
-from nav2_msgs.action._navigate_through_poses import NavigateThroughPoses_FeedbackMessage
-from std_msgs.msg import String
-from status_interfaces.msg import RobotStatus, SubTask, Task, WayPoint
+from status_interfaces.msg import Task, SubTask, WayPoint, RobotStatus
 
-from jackel_ops.enum import RobotStatusEnum
+from jackel_ops.goal_visualizer import GoalVisualizer
+from jackel_ops.enum import NavigationStatus
 from jackel_ops.dataclass import WPFStatus
 
-logger = RcutilsLogger(os.path.basename(__file__))
 
+class NavigationActionClient:
+    """
+    Action client for robot navigation using NavigateThroughPoses.
 
-class NavigationActionClientUsingNTP:
+    Handles sending navigation goals, processing feedback, and tracking
+    navigation status. Retry logic should be handled by the calling node.
+    """
+
     def __init__(self, node: Node) -> None:
+        """
+        Initialize the navigation action client.
+
+        Args:
+            node: ROS2 node instance for creating action client
+        """
+        self.logger = RcutilsLogger(self.__class__.__name__)
         self.node = node
 
-        self.robot_status: RobotStatus
-        self.task_status: String
+        # Robot and task state
+        self.robot_status: RobotStatus | None = None
         self.task: Task | None = None
         self.sub_task: SubTask | None = None
         self.waypoints_list: list[WayPoint] = []
-        self.goal_handle: client.ClientGoalHandle | None = None
-        self.is_goal_cancelled: bool = False
-        self.retry_count: int = 0
-        self.max_retries: int = 3
 
-        # Store last recorded waypoint
-        self.last_waypoint: int | None = None
-        self.last_waypoint_index = 0
-        self.current_status = RobotStatusEnum.START_MOVING
+        # Goal management
+        self.goal_handle: ClientGoalHandle | None = None
+        self.navigation_status: NavigationStatus = NavigationStatus.IDLE
 
-        # Flag to prevent multiple simultaneous goals
-        self.goal_in_progress: bool = False
-        self.result_received: bool = False
+        # Waypoint tracking
+        self.last_waypoint_index: int = 0
 
+        # Get namespace for topic names
         self.namespace = self.node.get_namespace().rstrip('/')
 
-        self.publisher = self.node.create_publisher(
-            String, f'{self.namespace}/status/robot/navigation', 10)
-
+        # Subscribe to robot status
         self.status_sub = self.node.create_subscription(
             RobotStatus,
             f'{self.namespace}/status/robot',
-            lambda msg: setattr(self, 'robot_status', msg),
-            10)
+            self._robot_status_callback,
+            10
+        )
 
+        # Create action client
         self.client = ActionClient(
-            self.node, NavigateThroughPoses,
-            f'{self.namespace}/navigate_through_poses')
+            self.node,
+            NavigateThroughPoses,
+            f'{self.namespace}/navigate_through_poses'
+        )
 
-    def cancel_goal(self):
-        """Cancel the current navigation goal"""
-        if self.is_goal_cancelled:
-            logger.info("Goal already cancelled")
-            return
+        self.goal_visualizer = GoalVisualizer(self.namespace)
 
-        if not self.goal_in_progress:
-            logger.info("No goal in progress to cancel")
-            return
+        self.logger.info(f"Navigation action client initialized for {self.namespace}")
 
-        logger.info('Canceling navigation goal')
-        if self.goal_handle is not None:
-            future = self.goal_handle.cancel_goal_async()
-            future.add_done_callback(self.goal_canceled_callback)
-        else:
-            logger.warning("No goal handle available to cancel.")
-            self.is_goal_cancelled = True
-            self.goal_in_progress = False
+    # ------------------------------------------------------------------
+    # Core Interface Methods
+    # ------------------------------------------------------------------
 
-    def goal_canceled_callback(self, future):
-        """Handle goal cancellation response"""
-        cancel_response: action_msgs.srv.CancelGoal.Response = future.result()
-        logger.info(
-            f"Cancel response code: {cancel_response.return_code}")
+    def get_navigation_status(self) -> NavigationStatus:
+        """
+        Get the current navigation action status.
 
-        if cancel_response.return_code == 0:
-            logger.info('Goal cancellation complete.')
-            self.is_goal_cancelled = True
-            self.goal_in_progress = False
-        else:
-            logger.warning('Goal failed to cancel.')
+        Returns:
+            NavigationStatus enum value
+        """
+        return self.navigation_status
 
-    def send_goal(self, task: Task):
-        """Send navigation goal to action server"""
-        # CRITICAL: Prevent sending goal if one is already in progress
-        if self.goal_in_progress and not self.result_received:
-            logger.warning(
-                "Navigation goal already in progress - skipping duplicate send")
-            return
+    def get_current_status(self) -> WPFStatus | None:
+        """
+        Get the current waypoint following status.
 
+        Returns:
+            WPFStatus object with current navigation state, or None if no task active
+        """
+        if not self.sub_task or not self.waypoints_list:
+            return None
+
+        current_node_id = self._get_current_node_id()
+        target_node_id = self.waypoints_list[-1].node_id if self.waypoints_list else -1
+
+        return WPFStatus(
+            status=int(self.navigation_status.value),
+            task=self.sub_task.description,
+            current_node_id=current_node_id,
+            target_node_id=target_node_id
+        )
+
+    def is_navigation_active(self) -> bool:
+        """
+        Check if navigation is currently active.
+
+        Returns:
+            True if navigation goal is in progress, False otherwise
+        """
+        return self.navigation_status in [
+            NavigationStatus.SENDING,
+            NavigationStatus.ACCEPTED,
+            NavigationStatus.ACTIVE
+        ]
+
+    def send_goal(self, task: Task) -> bool:
+        """
+        Send a navigation goal to the action server.
+
+        Args:
+            task: Task containing navigation waypoints
+
+        Returns:
+            True if goal was sent successfully, False otherwise
+        """
+        # Prevent duplicate goals
+        if self.is_navigation_active():
+            self.logger.warning(
+                f"Navigation already in progress (status: {self.navigation_status.name}) "
+                "- skipping duplicate"
+            )
+            return False
+
+        # Validate task
         if not task or not task.sub_tasks:
-            logger.warning(
-                f"Invalid task for navigation: {task}")
-            return
+            self.logger.warning(f"Invalid task for navigation: {task}")
+            self.navigation_status = NavigationStatus.ERROR
+            return False
 
         self.task = task
-        st = list(task.sub_tasks)
-        self.sub_task = st[0]
+        sub_tasks = list(task.sub_tasks)
+        self.sub_task = sub_tasks[0]
 
+        # Validate sub-task data
         if not self.sub_task or not isinstance(self.sub_task.data, list):
-            logger.error("SubTask data must be a list of WayPoints.")
-            return
+            self.logger.error("SubTask data must be a list of WayPoints")
+            self.navigation_status = NavigationStatus.ERROR
+            return False
 
         # Parse waypoints
         self.waypoints_list = [
@@ -121,196 +162,215 @@ class NavigationActionClientUsingNTP:
             for wp in self.sub_task.data
         ]
 
-        logger.debug(f"List of Waypoints: {self.waypoints_list}")
-        logger.info(f"Retry count: {self.retry_count}/{self.max_retries}")
+        if not self.waypoints_list:
+            self.logger.error("No waypoints found in sub-task")
+            self.navigation_status = NavigationStatus.ERROR
+            return False
 
-        # Generate poses
-        goal_msg = NavigateThroughPoses.Goal()
-        goal_msg.poses = self.generate_goal_poses(self.waypoints_list)
+        self.logger.debug(f"Waypoints: {[wp.node_id for wp in self.waypoints_list]}")
 
-        logger.info("Sending navigation goal with waypoints...")
+        goal_poses = self._generate_goal_poses(self.waypoints_list)
+
+
+        if not goal_poses:
+            self.logger.error("Failed to generate goal poses")
+            self.navigation_status = NavigationStatus.ERROR
+            return False
+
+        self.logger.info(
+            f"Sending navigation goal: {self.waypoints_list[0].node_id} → "
+            f"{self.waypoints_list[-1].node_id}"
+        )
 
         # Check server availability
         if not self.client.wait_for_server(timeout_sec=5.0):
-            logger.error("NavigateThroughPoses action server not available.")
+            self.logger.error("NavigateThroughPoses action server not available")
+            self.navigation_status = NavigationStatus.ERROR
+            return False
 
-            return
+        # self.goal_visualizer.publish_pose_array(goal_poses, label_prefix="NavGoal")
 
-        # Mark goal as in progress
-        self.goal_in_progress = True
-        self.result_received = False
-        self.is_goal_cancelled = False
+        # Generate navigation goal
+        goal_msg = NavigateThroughPoses.Goal()
+        goal_msg.poses = goal_poses
+
+        # Update status
+        self.navigation_status = NavigationStatus.SENDING
+        self.goal_handle = None
 
         # Send goal
-        future = self.client.send_goal_async(
-            goal_msg, self.feedback_callback)
-        future.add_done_callback(self.goal_response_callback)
+        future = self.client.send_goal_async(goal_msg, self._feedback_callback)
+        future.add_done_callback(self._goal_response_callback)
 
-    def goal_response_callback(self, future: Future):
-        """Handle the response from the action server when a goal is sent."""
+        return True
+
+    def cancel_goal(self) -> bool:
+        """
+        Cancel the current navigation goal.
+
+        Returns:
+            True if cancellation was initiated, False otherwise
+        """
+        if not self.is_navigation_active():
+            self.logger.info("No goal in progress to cancel")
+            return False
+
+        self.logger.info("Canceling navigation goal")
+
+        if self.goal_handle is not None:
+            future = self.goal_handle.cancel_goal_async()
+            future.add_done_callback(self._goal_canceled_callback)
+            return True
+        else:
+            self.logger.warning("No goal handle available to cancel")
+            self.navigation_status = NavigationStatus.CANCELED
+            return False
+
+    def reset(self) -> None:
+        """Reset navigation client to idle state."""
+        self.navigation_status = NavigationStatus.IDLE
+        self.goal_handle = None
+        self.last_waypoint_index = 0
+        self.task = None
+        self.sub_task = None
+        self.waypoints_list = []
+        self.logger.info("Navigation client reset to IDLE")
+
+    # ------------------------------------------------------------------
+    # Action Client Callbacks
+    # ------------------------------------------------------------------
+
+    def _robot_status_callback(self, msg: RobotStatus) -> None:
+        """Update stored robot status."""
+        self.robot_status = msg
+
+    def _goal_canceled_callback(self, future) -> None:
+        """Handle goal cancellation response."""
+        cancel_response: action_msgs.srv.CancelGoal.Response = future.result()
+
+        if cancel_response.return_code == 0:
+            self.logger.info("Goal cancellation complete")
+            self.navigation_status = NavigationStatus.CANCELED
+        else:
+            self.logger.warning(f"Goal cancellation failed: {cancel_response.return_code}")
+            self.navigation_status = NavigationStatus.ERROR
+
+    def _goal_response_callback(self, future: Future) -> None:
+        """Handle goal acceptance/rejection from action server."""
         self.goal_handle = future.result()
 
         if self.goal_handle is None:
-            logger.error("Failed to get a valid goal handle.")
-            self.goal_in_progress = False
+            self.logger.error("Failed to get valid goal handle")
+            self.navigation_status = NavigationStatus.FAILED
             return
 
         if not self.goal_handle.accepted:
-            logger.error("Goal rejected by action server")
-            self.goal_in_progress = False
+            self.logger.error("Goal rejected by action server")
+            self.navigation_status = NavigationStatus.REJECTED
             return
 
-        logger.info("Goal accepted, waiting for result...")
-        result_future = self.goal_handle.get_result_async()
-        result_future.add_done_callback(self.result_callback)
+        self.logger.info("Goal accepted by action server")
+        self.navigation_status = NavigationStatus.ACCEPTED
 
-    def result_callback(self, future: Future):
-        """Process the result of the navigation goal from the action server."""
+        result_future = self.goal_handle.get_result_async()
+        result_future.add_done_callback(self._result_callback)
+
+    def _result_callback(self, future: Future) -> None:
+        """Process the final result of the navigation goal."""
         result = future.result()
 
-        # logger.info(f"Result: {result}")
-
         if not result:
-            logger.error("Failed to get a valid result.")
-            self.goal_in_progress = False
+            self.logger.error("Failed to get valid result")
+            self.navigation_status = NavigationStatus.FAILED
             return
 
         status = result.status
-        self.result_received = True
-        self.goal_in_progress = False
-
-        logger.info(f"Result received. Status: {status}")
+        self.logger.info(f"Navigation result received. Status: {status}")
 
         if status == 4:  # SUCCEEDED
-            logger.info("Destination reached successfully.")
-            final_wp = self.waypoints_list[-1]
-            self.current_status = RobotStatusEnum.DESTINATION_REACHED
-            self.publish_status(final_wp.node_id, final_wp.node_id)
-
-            # Reset for next goal
-            self.retry_count = 0
-            self.last_waypoint = None
+            self.logger.info("Destination reached successfully")
+            self.navigation_status = NavigationStatus.SUCCEEDED
             self.last_waypoint_index = 0
 
         elif status == 5:  # CANCELED
-            logger.warning("Goal was canceled.")
-            current_node_id = self._get_current_node_id()
-            self.current_status = RobotStatusEnum.ERROR
-
-            if self.task:
-                self.publish_status(current_node_id, self.task.target_node_id)
-
-            # Don't retry if goal was explicitly canceled
-            self.retry_count = 0
-            self.last_waypoint = None
+            self.logger.warning("Navigation goal was canceled")
+            self.navigation_status = NavigationStatus.CANCELED
             self.last_waypoint_index = 0
 
         elif status == 6:  # ABORTED
-            current_node_id = self._get_current_node_id()
+            self.logger.warning(
+                f"Navigation goal was aborted at waypoint {self._get_current_node_id()}"
+            )
+            self.navigation_status = NavigationStatus.ABORTED
 
-            if not self.task:
-                logger.error("Task is None - cannot retry")
-                return
+    def _feedback_callback(
+        self, feedback_msg
+    ) -> None:
+        """
+        Process feedback from the action server during navigation.
 
-            logger.warning(f"Goal was aborted. Target: {self.task.target_node_id}")
+        Args:
+            feedback_msg: Feedback message containing current pose
+        """
+        # Update status to ACTIVE when receiving feedback
+        if self.navigation_status == NavigationStatus.ACCEPTED:
+            self.navigation_status = NavigationStatus.ACTIVE
 
-            # Retry logic
-            if self.retry_count < self.max_retries:
-                # Wait before retry
-                time.sleep(2.0)
-                self.retry_count += 1
-                logger.info(f"Retrying navigation... Attempt {self.retry_count}/{self.max_retries}")
-
-                # Small delay before retry
-                self.node.create_timer(
-                    1.0,
-                    lambda: self.send_goal(self.task) if self.task else None,
-                    clock=self.node.get_clock()
-                )
-            else:
-                logger.error(f"Navigation failed after {self.max_retries} retries")
-                self.current_status = RobotStatusEnum.ERROR
-                self.publish_status(current_node_id, self.task.target_node_id)
-
-                # Reset retry counter for next task
-                self.retry_count = 0
-                self.last_waypoint = None
-                self.last_waypoint_index = 0
-
-    def _get_current_node_id(self) -> int:
-        """Get current node ID from last waypoint"""
-        if self.last_waypoint is not None and self.last_waypoint < len(self.waypoints_list):
-            return self.waypoints_list[self.last_waypoint].node_id
-        return -1
-
-    def feedback_callback(self, feedback_msg: NavigateThroughPoses_FeedbackMessage):
-        """Handle feedback from the action server during navigation."""
         feedback: NavigateThroughPoses.Feedback = feedback_msg.feedback
         current_pose: Pose = feedback.current_pose.pose
-        index = self.get_closest_waypoint_index(current_pose)
 
-        if index != -1 and self.last_waypoint != index:
-            logger.info(f"Waypoint changed: {self.last_waypoint} → {index}")
-            self.last_waypoint = index
-            self.current_status = RobotStatusEnum.MOVING
+        # Update waypoint tracking
+        new_index = self._get_closest_waypoint_index(current_pose)
 
-        current_node_id = self._get_current_node_id()
-        target_node_id = self.waypoints_list[-1].node_id if self.waypoints_list else -1
+        if new_index != -1 and new_index != self.last_waypoint_index:
+            self.logger.info(
+                f"Waypoint progress: {self.last_waypoint_index} → {new_index} "
+                f"(Node: {self.waypoints_list[new_index].node_id})"
+            )
+            self.last_waypoint_index = new_index
 
-        status = WPFStatus(
-            status=int(self.current_status.value),
-            task=self.sub_task.description if self.sub_task else "No Task",
-            current_node_id=current_node_id,
-            target_node_id=target_node_id,
-        )
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
-        status_json = json.dumps(asdict(status))
-        msg = String()
-        msg.data = status_json
-        self.publisher.publish(msg)
-
-    def publish_status(self, current_node_id: int, target_node_id: int) -> None:
+    def _get_current_node_id(self) -> int:
         """
-        Publish the current status as a JSON-formatted ROS2 String message.
-
-        Args:
-            current_node_id: The identifier of the current node.
-            target_node_id: The identifier of the target node.
-        """
-        wpf_status = WPFStatus(
-            status=int(self.current_status.value),
-            task=self.sub_task.description if self.sub_task else "No Task",
-            current_node_id=current_node_id,
-            target_node_id=target_node_id
-        )
-
-        logger.info(f"Publishing final status: {wpf_status}")
-
-        status_json = json.dumps(asdict(wpf_status))
-        msg = String()
-        msg.data = status_json
-        self.publisher.publish(msg)
-
-    def generate_goal_poses(self, waypoint_list: list[WayPoint]) -> list[PoseStamped]:
-        """
-        Generate a list of PoseStamped messages representing goal poses for navigation.
-
-        The first pose corresponds to the robot's current location using ground truth data.
-        Subsequent poses are generated from the provided waypoint list. Each pose's orientation
-        is calculated to face the direction of the next waypoint, except for the last waypoint,
-        which uses its specified theta orientation.
-
-        Args:
-            waypoint_list: List of waypoints with node_id, x, y, and theta attributes.
+        Get current node ID from last tracked waypoint.
 
         Returns:
-            List of PoseStamped objects with positions and orientations set for navigation.
+            Current node ID, or -1 if unknown
         """
+        if self.last_waypoint_index < len(self.waypoints_list):
+            return self.waypoints_list[self.last_waypoint_index].node_id
+        return -1
+
+    def _generate_goal_poses(
+        self, waypoint_list: list[WayPoint]
+    ) -> list[PoseStamped]:
+        """
+        Generate list of PoseStamped messages for navigation.
+
+        The first pose uses the robot's current position. Subsequent poses
+        are oriented towards the next waypoint. The final pose uses its
+        specified theta orientation.
+
+        Args:
+            waypoint_list: List of waypoints to navigate through
+
+        Returns:
+            List of PoseStamped objects for navigation
+        """
+        if not self.robot_status:
+            self.logger.warning("No robot status available for pose generation")
+            return []
+
         waypoint_count = len(waypoint_list)
         poses: list[PoseStamped] = []
 
         for index, waypoint in enumerate(waypoint_list):
-            current_wp = WayPoint(**waypoint) if isinstance(waypoint, dict) else waypoint
+            current_wp = (
+                WayPoint(**waypoint) if isinstance(waypoint, dict) else waypoint
+            )
 
             # Convert theta to quaternion
             w, x, y, z = euler.euler2quat(0.0, 0.0, current_wp.theta, 'sxyz')
@@ -321,8 +381,12 @@ class NavigationActionClientUsingNTP:
 
             if index == 0:
                 # First waypoint: use current robot position
-                pose.pose.position.x = float(self.robot_status.topo_map_position.x)
-                pose.pose.position.y = float(self.robot_status.topo_map_position.y)
+                pose.pose.position.x = float(
+                    self.robot_status.topo_map_position.x
+                )
+                pose.pose.position.y = float(
+                    self.robot_status.topo_map_position.y
+                )
                 pose.pose.position.z = 0.0
 
                 # Use waypoint orientation
@@ -331,26 +395,32 @@ class NavigationActionClientUsingNTP:
                 pose.pose.orientation.z = float(z)
                 pose.pose.orientation.w = float(w)
 
-                logger.info(
-                    f"Start pose: ({pose.pose.position.x:.3f}, {pose.pose.position.y:.3f}) "
-                    f"theta: {current_wp.theta:.3f}")
+                self.logger.info(
+                    f"Start pose: ({pose.pose.position.x:.3f}, "
+                    f"{pose.pose.position.y:.3f}) theta: {current_wp.theta:.3f}"
+                )
             else:
                 # Subsequent waypoints
                 pose.pose.position.x = float(current_wp.x)
                 pose.pose.position.y = float(current_wp.y)
                 pose.pose.position.z = 0.0
 
-                # Calculate orientation towards next waypoint or use specified theta
-                next_wp = waypoint_list[index + 1] if index + 1 < waypoint_count else None
+                # Calculate orientation
+                next_wp = (
+                    waypoint_list[index + 1] if index + 1 < waypoint_count else None
+                )
 
                 if next_wp:
                     # Point towards next waypoint
                     dx = next_wp.x - current_wp.x
                     dy = next_wp.y - current_wp.y
 
-                    if abs(dx) > 0.01 or abs(dy) > 0.01:  # Only calculate if distance is significant
+                    if abs(dx) > 0.01 or abs(dy) > 0.01:
+                        # Calculate angle to next waypoint
                         angle = math.atan2(dy, dx)
-                        logger.info(f"Waypoint {current_wp.node_id} Pose: {current_wp.x, current_wp.y} and theta: {angle:.3f}")
+                        self.logger.debug(
+                            f"Waypoint {current_wp.node_id} → angle: {angle:.3f}"
+                        )
                         pose.pose.orientation.z = math.sin(angle / 2)
                         pose.pose.orientation.w = math.cos(angle / 2)
                         pose.pose.orientation.x = 0.0
@@ -362,34 +432,38 @@ class NavigationActionClientUsingNTP:
                         pose.pose.orientation.z = float(z)
                         pose.pose.orientation.w = float(w)
                 else:
-                    # Last waypoint: use specified theta orientation
+                    # Last waypoint: use specified theta
                     pose.pose.orientation.x = float(x)
                     pose.pose.orientation.y = float(y)
                     pose.pose.orientation.z = float(z)
                     pose.pose.orientation.w = float(w)
-                    logger.info(f"Final waypoint {current_wp.node_id} Pose: {current_wp.x, current_wp.y} and theta: {current_wp.theta:.3f}")
+                    self.logger.info(
+                        f"Final waypoint {current_wp.node_id} at "
+                        f"({current_wp.x:.3f}, {current_wp.y:.3f}) "
+                        f"theta: {current_wp.theta:.3f}"
+                    )
 
             poses.append(pose)
 
         return poses
 
-    def get_closest_waypoint_index(self, current_pose: Pose) -> int:
+    def _get_closest_waypoint_index(self, current_pose: Pose) -> int:
         """
-        Finds the closest waypoint based on distance with hysteresis to prevent oscillation.
+        Find closest waypoint with hysteresis to prevent oscillation.
 
         Args:
             current_pose: Current robot pose
 
         Returns:
-            Index of the closest waypoint
+            Index of closest waypoint
         """
         if not self.waypoints_list:
             return -1
 
         min_dist = float('inf')
         closest_index = self.last_waypoint_index
-        threshold = 0.05 ** 2  # 25cm² - consider "reached" threshold
-        switch_buffer = 0.3  # Must be 0.3m closer to switch to next waypoint
+        threshold = 0.05 ** 2  # 5cm² - "reached" threshold
+        switch_buffer = 0.3  # Must be 0.3m closer to switch waypoints
 
         # Calculate distance to current tracked waypoint
         current_wp = self.waypoints_list[self.last_waypoint_index]
@@ -405,20 +479,19 @@ class NavigationActionClientUsingNTP:
                 (waypoint.y - current_pose.position.y) ** 2
             )
 
-            # If within threshold, consider this waypoint reached
+            # Within threshold - consider reached
             if dist_squared <= threshold:
                 if i != self.last_waypoint_index:
-                    logger.debug(f"Reached waypoint {waypoint.node_id} (dist: {dist_squared**0.5:.3f}m)")
-                self.last_waypoint_index = i
+                    self.logger.debug(
+                        f"Reached waypoint {waypoint.node_id} "
+                        f"(dist: {dist_squared**0.5:.3f}m)"
+                    )
                 return i
 
-            # Only switch if significantly closer than current waypoint (hysteresis)
-            if dist_squared < min_dist and dist_squared < (current_dist - switch_buffer ** 2):
+            # Only switch if significantly closer (hysteresis)
+            if (dist_squared < min_dist and
+                dist_squared < (current_dist - switch_buffer ** 2)):
                 min_dist = dist_squared
                 closest_index = i
-
-        # Only update if we found a closer waypoint
-        if closest_index != self.last_waypoint_index:
-            self.last_waypoint_index = closest_index
 
         return closest_index
