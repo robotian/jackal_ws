@@ -1,0 +1,10 @@
+/*/cmd_vel_scaler_node:
+  ros__parameters:
+    linear_scale: 1.125
+    angular_scale: 0.87
+    input_cmd_vel_topic: "cmd_vel_nav"
+    output_cmd_vel_topic: "cmd_vel"
+    deadband_linear: 0.06
+    deadband_angular: 0.17
+      
+  

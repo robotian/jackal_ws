@@ -46,14 +46,23 @@ rclcpp_components_register_nodes(zedOdom_transformer_component "ZedOdomTransform
 add_executable(zedOdomVelRepublisherNode src/zedOdomVelRepublisher_main.cpp)
 ament_target_dependencies(zedOdomVelRepublisherNode rclcpp nav_msgs geometry_msgs tf2 tf2_geometry_msgs)
 
+
+
+add_executable(cmdVelScalerNode src/cmd_vel_scaler.cpp)
+ament_target_dependencies(cmdVelScalerNode rclcpp geometry_msgs )
+
+
 # Install executables
 install(TARGETS
   zedOdomVelRepublisherNode
+  cmdVelScalerNode
   # node2
   DESTINATION lib/${PROJECT_NAME}
 )
 
-
+install(DIRECTORY
+  launch 
+  DESTINATION share/${PROJECT_NAME})
 
 # Install executables
 install(TARGETS
