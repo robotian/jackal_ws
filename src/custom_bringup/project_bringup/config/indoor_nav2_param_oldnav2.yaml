@@ -160,19 +160,18 @@ controller_server:
     enable_stamped_cmd_vel: false
     controller_frequency: 20.0
     transform_tolerance: 1.0
-    odom_topic: <robot_namespace>/odom_converted
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
-      time_steps: 40
-      model_dt: 0.1
+      time_steps: 56
+      model_dt: 0.05
       batch_size: 2000
       vx_std: 0.2
       vy_std: 0.2
       wz_std: 0.4
-      vx_max: 0.35
-      vx_min: -0.2
+      vx_max: 0.5
+      vx_min: -0.35
       vy_max: 0.5
-      wz_max: 1.0
+      wz_max: 1.9
       ax_max: 3.0
       ax_min: -3.0
       ay_min: -3.0
@@ -209,12 +208,12 @@ controller_server:
       GoalAngleCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 15.0
+        cost_weight: 3.0
         threshold_to_consider: 0.5
       PreferForwardCritic:
         enabled: true
         cost_power: 1
-        cost_weight: 9.0
+        cost_weight: 5.0
         threshold_to_consider: 0.5
       # ObstaclesCritic:
       #   enabled: true
@@ -430,7 +429,7 @@ local_costmap:
       mark_threshold: 2
       always_send_full_costmap: True
       # plugins: ["hesai_voxel_layer", "front_rplidar_obstacle_layer", "back_rplidar_obstacle_layer", "inflation_layer"]
-      plugins: ["static_map_layer", "voxel_layer", "inflation_layer"]
+      plugins: ["static_map_layer", "inflation_layer"]
       # plugins: ["voxel_layer", "inflation_layer"]
       static_map_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
@@ -440,7 +439,7 @@ local_costmap:
         plugin: "nav2_costmap_2d::InflationLayer"
         enabled: True
         cost_scaling_factor: 10.0
-        inflation_radius: 1.5
+        inflation_radius: 0.41
       # voxel_layer:
       #   plugin: "spatio_temporal_voxel_layer::SpatioTemporalVoxelLayer"
       #   enabled: true
@@ -551,8 +550,8 @@ global_costmap:
       track_unkown_space: true
       # origin_x: -100.0
       # origin_y: -100.0
-      # plugins: ["static_layer", "inflation_layer"]
-      plugins: ["static_layer", "voxel_layer", "inflation_layer"]
+      plugins: ["static_layer", "inflation_layer"]
+      # plugins: ["static_layer", "voxel_layer", "inflation_layer"]
       # obstacle_layer:
       #   plugin: "nav2_costmap_2d::ObstacleLayer"
       #   enabled: True
@@ -599,7 +598,7 @@ global_costmap:
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         cost_scaling_factor: 0.9
-        inflation_radius: 1.5
+        inflation_radius: 0.41
       always_send_full_costmap: True
   global_costmap_client:
     ros__parameters:
