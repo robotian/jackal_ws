@@ -51,8 +51,8 @@ class OdomTwistExtractor(Node):
         # self.declare_parameter('odom_topic', '/j100_0921/rigidbody_1/odom')
         # self.declare_parameter('twist_topic', '/base_link_twist_map')
 
-        self.declare_parameter('odom_topic', '/j100_0921/odom_converted')
-        self.declare_parameter('twist_topic', '/base_link_twist_odom')
+        self.declare_parameter('odom_topic', '/odom')
+        self.declare_parameter('twist_topic', '/twist_from_odom')
         
         # Get topic names from parameters
         odom_topic = self.get_parameter('odom_topic').get_parameter_value().string_value
