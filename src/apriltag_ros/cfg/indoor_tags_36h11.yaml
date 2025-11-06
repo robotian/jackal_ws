@@ -1,0 +1,63 @@
+/**:
+  ros__parameters:
+    use_sim_time: True
+    image_transport: raw # image format
+    family: 36h11 # tag family name
+    max_hamming: 0 # maximum allowed hamming distance (corrected bits)
+
+    # see "apriltag.h" 'struct apriltag_detector' for more documentation on these optional parameters
+    detector:
+      threads: 1 # number of threads
+      decimate: 2.0 # decimate resolution for quad detection
+      blur: 0.8 # sigma of Gaussian blur for quad detection
+      refine: 1 # snap to strong gradients
+      sharpening: 0.25 # sharpening of decoded images
+      debug: 0 # write additional debugging images to current working directory
+
+    pose_estimation_method: "pnp" # method for estimating the tag pose
+
+    tag:
+      ids: [1] # tag ID
+      dock_ids: [1] # dock ids
+      frames: # frame IDs
+        [
+          charger,
+        ]
+      sizes: [0.08] # optional tag-specific edge size
+
+    global_pose_list: # global tag poses for pose correction, name each parameter tag_<ID> from ids
+      tag_1: [1.084, 2.280, 0.306, 0.0, 0.0, -1.57] # indoor location of tag_1 orientation may need to be updated
+
+    # tag:
+    #   ids: [1, 2, 5, 6, 3, 4] # tag ID
+    #   dock_ids: [1, 2] # dock ids
+    #   frames: # frame IDs
+    #     [
+    #       charger,
+    #       unloader,
+    #       charger_loc_left,
+    #       unloader_loc_left,
+    #       charger_loc_right,
+    #       unloader_loc_right,
+    #     ]
+    #   sizes: [0.16, 0.16, 0.24, 0.24, 0.24, 0.24] # optional tag-specific edge size
+
+    # global_pose_list: # global tag poses for pose correction, name each parameter tag_<ID> from ids
+    #   tag_1: [-0.13212, 5.885, 0.25, 0.0, 0.0, -1.57]
+    #   tag_5: [-0.38212, 5.885, 0.5, 0.0, 0.0, -1.57]
+    #   tag_2: [3.898, 5.885, 0.25, 0.0, 0.0, -1.57]
+    #   tag_6: [3.648, 5.885, 0.5, 0.0, 0.0, -1.57]
+    #   tag_3: [0.11788, 5.885, 0.5, 0.0, 0.0, -1.57]
+    #   tag_4: [4.148, 5.885, 0.5, 0.0, 0.0, -1.57]
+
+    # The max detection distance (m) for which a pose correction will be performed
+    tag_transform_threshold_dist: 2.0
+
+    # How often to run pose correction
+    correct_every_n_frames: 10 #
+
+    # Offset from docking tag to generated dock pose (XYZ) (m)
+    dock_pose_translation: [0.0, 0.0, 0.6]
+
+    # Rotation from wocking tag to generated dock pose (RPY) (rad)
+    dock_pose_rotation: [0.0, 1.57, 0.0]
