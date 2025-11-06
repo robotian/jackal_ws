@@ -1,6 +1,6 @@
 # Dual GPS and Dual EKF approach
 # ZED VIO for local odom
-# 
+#
 
 
 import os
@@ -17,7 +17,7 @@ from launch.conditions import IfCondition
 
 def generate_launch_description():
     # Include Packages
-    pkg_clearpath_sensors = FindPackageShare('clearpath_sensors')   
+    pkg_clearpath_sensors = FindPackageShare('clearpath_sensors')
     pkg_swiftnav_duro = FindPackageShare('swiftnav_ros2_driver')
     pkg_project_bringup = FindPackageShare('project_bringup')
 
@@ -27,10 +27,10 @@ def generate_launch_description():
     reference_duro_namespace = LaunchConfiguration('reference_duro_namespace')
 
 
-    zed_param = LaunchConfiguration('zed_param') 
+    zed_param = LaunchConfiguration('zed_param')
     attitude_duro_parameter =  LaunchConfiguration('attitude_duro_parameter')
     reference_duro_parameter =  LaunchConfiguration('reference_duro_parameter')
-    ekf_parameter = LaunchConfiguration('ekf_parameter') 
+    ekf_parameter = LaunchConfiguration('ekf_parameter')
 
     # Declare the use_sim_time argument
     arg_use_sim_time = DeclareLaunchArgument(
@@ -196,15 +196,15 @@ def generate_launch_description():
 
     zed_launch = PathJoinSubstitution([pkg_project_bringup, 'launch', 'stereolabs_zed.launch.py'])
     launch_zed = GroupAction(
-        actions=[            
+        actions=[
             # PushRosNamespace(LaunchConfiguration('zed_namespace')),
             SetRemap(src='/tf',dst=[LaunchConfiguration('robot_namespace'),'/tf']),
             SetRemap(src='/tf_static',dst=[LaunchConfiguration('robot_namespace'),'/tf_static']),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([zed_launch]),  
+                PythonLaunchDescriptionSource([zed_launch]),
                 launch_arguments={
                     ('namespace', zed_namespace),
-                    ('parameters', zed_param),                    
+                    ('parameters', zed_param),
                     },
             )
         ]
@@ -215,15 +215,15 @@ def generate_launch_description():
 
     launch_ekf_global = GroupAction(
         condition=IfCondition(LaunchConfiguration('use_ekf_global')),
-        actions=[            
+        actions=[
             PushRosNamespace(LaunchConfiguration('robot_namespace')),
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource([launch_file_ekf_global]),  
-                launch_arguments={'use_sim_time': 'false',      
-                          'namespace': robot_namespace,   
+                PythonLaunchDescriptionSource([launch_file_ekf_global]),
+                launch_arguments={'use_sim_time': 'false',
+                          'namespace': robot_namespace,
                           'ekf_parameter': ekf_parameter,
-                        #   'gps_namespace': duro_namespace,                    
-                          }.items()  # Optional: Pass arguments if needed                
+                        #   'gps_namespace': duro_namespace,
+                          }.items()  # Optional: Pass arguments if needed
             )
         ]
     )
@@ -246,9 +246,9 @@ def generate_launch_description():
         output='screen',
         namespace=robot_namespace,
         remappings=[('/tf','tf'),('/tf_static','tf_static') ],
-        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},     
-                    {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},  
-                    {'publish_tf': True}  # Set to True to publish the transform    
+        parameters=[{'use_sim_time': LaunchConfiguration('use_sim_time')},
+                    {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},
+                    {'publish_tf': True}  # Set to True to publish the transform
                     ]
     )
 
@@ -261,15 +261,15 @@ def generate_launch_description():
         namespace=robot_namespace,
         remappings=[('/tf','tf'),('/tf_static','tf_static') ],
         parameters=[
-            # {'use_sim_time': LaunchConfiguration('use_sim_time')},     
-            {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},  
-            {'publish_tf': True},  # Set to True to publish the transform    
+            # {'use_sim_time': LaunchConfiguration('use_sim_time')},
+            {'target_odom_topic': 'sensors/camera_0/stereolabs_zed/odom'},
+            {'publish_tf': True},  # Set to True to publish the transform
             {'filter_window_size':1},
             ]
     )
 
 
-    
+
 
     declare_apriltag_config_cmd = DeclareLaunchArgument(
         'apriltag_config',
@@ -277,7 +277,7 @@ def generate_launch_description():
         # default_value=os.path.join(pkg_project_bringup, 'config', 'j100','tags_36h11.yaml'),
         description='Path to the apriltag configuration file',
         )
-    
+
     # run the apriltag node
     apriltag_node = Node(
         package='apriltag_ros',
@@ -297,6 +297,19 @@ def generate_launch_description():
                     ],
     )
 
+    # TODO: Update Pose correction launch configuration.
+    # pose_correction_launch_file = os.path.join(
+    #     get_package_share_directory('apriltag_ros'),
+    #     'launch',
+    #     'pose_correction_husky.launch.py'
+    #     # 'zed_camera_husky_nav_ekf.launch.py'
+    # )
+
+    # pose_correction_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(pose_correction_launch_file),
+    #     launch_arguments={'camera_name': LaunchConfiguration(robot_namespace)}.items()  # Optional: Pass arguments if needed
+    # )
+
     mocap_pose_pub_node = Node(
         package='odom_transformer',
         executable='map2odom_tf_publisher',
@@ -311,18 +324,35 @@ def generate_launch_description():
         output='screen',
     )
 
+    cmdVelScaler_node = Node(
+        package='misc_tools_cpp',
+        executable='cmdVelScalerNode',
+        name='cmdVelScalerNode',  # This must match the name in the param file
+        output='screen',
+        namespace=robot_namespace,
+        parameters=[
+            {'scale_linear': 1.125},
+            {'scale_angular': 0.87},
+            {'input_cmd_vel_topic': 'cmd_vel_nav'},
+            {'output_cmd_vel_topic': 'cmd_vel'},
+            {'deadband_linear': 0.04},
+            {'deadband_angular': 0.16},
+            {'vector_magnitude_threshold': 0.15},
+        ]  # Pass the loaded dictionary
+    )
+
 
     # Launch Description
     ld = LaunchDescription()
     ld.add_action(arg_use_sim_time)
-    ld.add_action(arg_robot_namespace) 
-    ld.add_action(arg_zed_namespace)   
-    ld.add_action(arg_attitude_duro_namespace)   
+    ld.add_action(arg_robot_namespace)
+    ld.add_action(arg_zed_namespace)
+    ld.add_action(arg_attitude_duro_namespace)
     ld.add_action(arg_reference_duro_namespace)
-    ld.add_action(arg_zed_param)    
+    ld.add_action(arg_zed_param)
     ld.add_action(arg_attitude_duro_parameter)
     ld.add_action(arg_reference_duro_parameter)
-    ld.add_action(arg_ekf_parameter)    
+    ld.add_action(arg_ekf_parameter)
     ld.add_action(declare_use_ekfglobal_node_arg)
 
     # ld.add_action(att_duro_node)
@@ -332,13 +362,13 @@ def generate_launch_description():
     # ld.add_action(ref_duro_imu_filter_node)
     # ld.add_action(ref_duro_imu_madg_node)   # madgwick filter
     # ld.add_action(att_duro_imu_madg_node)   # madgwick filter
-    
-    ld.add_action(launch_zed) 
-    
+
+    ld.add_action(launch_zed)
+
     # ld.add_action(launch_ekf_local)
     ld.add_action(zedodom_publisher_node)
 
-    # ld.add_action(att_duro_headingOdom_node)    
+    # ld.add_action(att_duro_headingOdom_node)
 
     ld.add_action(declare_apriltag_config_cmd)
     # ld.add_action(apriltag_node)
@@ -346,7 +376,8 @@ def generate_launch_description():
 
     # # comment out for RTAB mapping
     # ld.add_action(launch_ekf_global)
-    
-    
-    
+    # ld.add_action(cmdVelScaler_node)
+
+
+
     return ld
