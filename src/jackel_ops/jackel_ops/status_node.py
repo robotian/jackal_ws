@@ -10,9 +10,9 @@ from status_interfaces.msg import RobotStatus, Task, SubTask, UndockGoal
 
 from jackel_ops.april_tag_docking import DockingActionClient
 from jackel_ops.april_tag_undocking import UndockingActionClient
-from jackel_ops.navigation_action_client import NavigationActionClient
+from jackel_ops.navigation_action_client import NavigationActionClientUsingNTP
 from jackel_ops.dataclass import DockingFeedback, WPFStatus
-from jackel_ops.enum import NavigationStatus, OnlineFlagEnum, RobotStatusEnum
+from jackel_ops.enum import OnlineFlagEnum, RobotStatusEnum
 
 
 class StatusNode(Node):
@@ -67,7 +67,7 @@ class StatusNode(Node):
         self.timer = self.create_timer(1.0, self.timer_callback)
 
         # Action Clients
-        self.navigation = NavigationActionClient(self)
+        self.navigation = NavigationActionClientUsingNTP(self)
         self.april_tag_docking = DockingActionClient(self)
         self.april_tag_undocking = UndockingActionClient(self)
 
@@ -316,10 +316,27 @@ class StatusNode(Node):
     def handle_task(self, robot_status: RobotStatus):
         """Main task handling logic"""
         if not self.task or self.task.description == "" or self.task.job_schedule == "":
-            if self.current_status != RobotStatusEnum.IDLE:
-                self._transition_status(RobotStatusEnum.IDLE)
-                self._cleanup_subscriptions()
-            return
+            # Handle empty task by moving to charging station if not already there
+            current_pos = self.pose_status.pose.pose.position if self.pose_status and self.pose_status.pose else None
+            if current_pos and not self._is_at_charging_station(current_pos):
+                if self.current_status != RobotStatusEnum.START_MOVING:
+                    self.get_logger().info("Empty task received - Moving to charging station")
+                    # Create a charging task
+                    charging_task = Task()
+                    charging_task.task_type = Task.CHARGING_TASK
+                    charging_task.description = "Auto charging on empty task"
+                    charging_task.target_node_id = 0  # Assuming charging station is at node 0
+                    charging_task.job_schedule = "auto"
+
+                    self.task = charging_task
+                    self.current_task = charging_task
+                    self._transition_status(RobotStatusEnum.START_MOVING)
+                return
+            else:
+                if self.current_status != RobotStatusEnum.IDLE:
+                    self._transition_status(RobotStatusEnum.IDLE)
+                    self._cleanup_subscriptions()
+                return
 
         self.current_task = self.task
 
@@ -380,10 +397,6 @@ class StatusNode(Node):
 
     def _process_action_status(self, robot_status: RobotStatus):
         """Process status updates from action clients"""
-
-        if self.navigation.is_navigation_active():
-            self.handle_navigation(robot_status)
-
         if self.wpf_sub is not None and self.wpf_status.data:
             self.handle_way_point_follower(robot_status)
         elif self.docking_sub is not None and self.docking_status.data:
@@ -453,22 +466,6 @@ class StatusNode(Node):
             self.get_logger().warning(f"Unknown subtask type: {self.current_sub_task.type}")
 
     # ==================== ACTION CLIENT HANDLERS ====================
-
-    def handle_navigation(self, robot_status: RobotStatus):
-        # Check status in timer/callback
-        status = self.navigation.get_navigation_status()
-
-        if status == NavigationStatus.SUCCEEDED:
-            print("Navigation complete!")
-            self.navigation.reset()  # Ready for next goal
-
-        elif status == NavigationStatus.ABORTED:
-            print("Navigation aborted, retry?")
-            # Implement retry logic in status node
-
-        elif status == NavigationStatus.ERROR:
-            print("Navigation error occurred")
-            self.navigation.reset()
 
     def handle_way_point_follower(self, robot_status: RobotStatus):
         """Handle navigation waypoint follower status"""
@@ -627,7 +624,7 @@ class StatusNode(Node):
         self._cleanup_subscriptions()
 
         # Cancel any active goals
-        if self.navigation.is_navigation_active():
+        if self.navigation.goal_in_progress:
             self.get_logger().info("Cancelling active navigation goal")
             self.navigation.cancel_goal()
 
@@ -660,19 +657,23 @@ class StatusNode(Node):
                 self.get_logger().warning("Navigation subscription exists - skipping")
                 return
 
-            # if self.navigation.get_navigation_status == NavigationStatus.IDLE:
-
             self.get_logger().info(
                 f"Starting navigation: node {self.current_node_id} → {self.current_task.target_node_id}")
 
             self._transition_status(RobotStatusEnum.MOVING)
 
-            # # Create subscription
-            # self.wpf_sub = self.create_subscription(
-            #     String,
-            #     f'{self.namespace}/status/robot/navigation',
-            #     lambda msg: setattr(self, 'wpf_status', msg),
-            #     10)
+            # Create subscription
+            self.wpf_sub = self.create_subscription(
+                String,
+                f'{self.namespace}/status/robot/navigation',
+                lambda msg: setattr(self, 'wpf_status', msg),
+                10)
+
+            # Reset navigation state
+            self.navigation.is_goal_cancelled = False
+            self.navigation.retry_count = 0
+            self.navigation.last_waypoint = None
+            self.navigation.last_waypoint_index = 0
 
             # Send goal
             self.navigation.send_goal(self.current_task)

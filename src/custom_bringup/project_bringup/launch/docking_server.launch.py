@@ -47,7 +47,9 @@ def generate_launch_description():
         namespace=namespace,
         parameters=[{'use_sim_time': use_sim_time},
                     docking_params_file],
-        remappings=remappings)
+        remappings=remappings 
+        + [('cmd_vel', 'cmd_vel_nav')]
+        )
 
     # Load the lifecycle manager for the docking server
     lifecycle_manager = Node(

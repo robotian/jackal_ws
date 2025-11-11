@@ -376,7 +376,7 @@ def generate_launch_description():
 
     # # comment out for RTAB mapping
     # ld.add_action(launch_ekf_global)
-    ld.add_action(cmdVelScaler_node)
+    # ld.add_action(cmdVelScaler_node)
 
 
 

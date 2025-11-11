@@ -4,7 +4,7 @@ from rclpy.impl.rcutils_logger import RcutilsLogger
 from rclpy.task import Future
 from action_msgs.msg import GoalStatus
 
-from opennav_docking_msgs.action import UndockRobot
+from nav2_msgs.action._undock_robot import UndockRobot
 from status_interfaces.msg import SubTask, UndockGoal
 from jackel_ops.dataclass import DockingFeedback
 from jackel_ops.enum import RobotStatusEnum
